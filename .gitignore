@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.idea/
+data/raw/*.txt
+data/processed/*.jsonl
+data/processed/*.md
+data/processed/extraction_state.json
+data/processed/*.csv
+data/processed/chromadb/
