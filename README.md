@@ -105,3 +105,22 @@ pytest -q
 ```
 
 Il PDF fornito deve produrre 19 righe CSV. Verificare un campione contro `data/raw/file_hotels.txt`; `source_pages` rende ogni campo tracciabile. Limiti residui: l'ordine del testo PDF e gli artefatti OCR possono richiedere una revisione visiva; il fallback locale è conservativo e non sostituisce la validazione semantica del modello.
+
+## Architettura corrente (aggiornamento temporaneo)
+
+Accanto al parser canonico `pdfplumber`, il progetto include un candidato PyMuPDF per i PDF multi-colonna:
+
+```text
+PDF
+ ├─ pdfplumber                 -> segmentazione canonica
+ └─ PyMuPDF get_text("dict")   -> header BBox/font-size
+                                  -> ExtractionQuality
+                                  -> correzione Gemini mirata
+                                  -> HotelRecord
+                                  -> ChromaDB / Retriever
+                                  -> RAGEngine -> FastMCP
+```
+
+PyMuPDF usa filtri spaziali e tipografici per isolare il nome nell’header. I record con `quality.needs_review=True` possono essere inviati a Gemini Flash per la correzione del titolo; i record ad alta confidence non consumano chiamate API. `RAGEngine` recupera i documenti più rilevanti, genera una risposta italiana con Gemini e include le pagine sorgente; quando il contesto non è sufficiente restituisce `Informazione non sufficiente nei documenti forniti`.
+
+Questa sezione è temporanea e verrà consolidata insieme alla documentazione della futura webapp.
