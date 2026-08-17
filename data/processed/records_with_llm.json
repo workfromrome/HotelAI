@@ -1,0 +1,213 @@
+[
+  {
+    "nome": "BRAVO ALIMINI",
+    "pagine": [
+      2,
+      3
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "HOTEL THA'S CLUB",
+    "pagine": [
+      4,
+      5
+    ],
+    "confidence": 0.5833,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: Il titolo grezzo conteneva un simbolo di virgolette isolata (\" ) che rappresentava un'apostrofo mancante nella parola THA'S. Ricostruendo il nome secondo l'header, il nome corretto dell'hotel è HOTEL THA'S CLUB."
+    ]
+  },
+  {
+    "nome": "VOI DANIE' ESSENTIA",
+    "pagine": [
+      6,
+      7
+    ],
+    "confidence": 0.75,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: Nel titolo grezzo la virgoletta (\" ) appare al posto di un apostrofo che chiude la parola \"DANIE\". Sostituendola con l'apostrofo corretto otteniamo il nome dell'hotel \"VOI DANIE' ESSENTIA\", mantenendo tutti gli elementi presenti nell'header e senza aggiungere altre parole."
+    ]
+  },
+  {
+    "nome": "TORRE CINTO GREENBLU SEA EMOTIONS",
+    "pagine": [
+      8,
+      9
+    ],
+    "confidence": 0.8354,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: Nel titolo grezzo era presente una virgoletta isolata (\\\"), risultato di un artefatto OCR. Il nome corretto dell'hotel, confermato anche dall'header, è TORRE CINTO GREENBLU SEA EMOTIONS; la virgoletta è stata rimossa e gli spazi normalizzati."
+    ]
+  },
+  {
+    "nome": "MASSERIA BARONI DI MONTESARDO",
+    "pagine": [
+      10,
+      11
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "Gattarella Resort",
+    "pagine": [
+      12,
+      13
+    ],
+    "confidence": 0.7317,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: Il titolo grezzo contiene l'artificio \"!\" al posto della parte mancante della parola. Dal contesto (header e descrizione) emerge il nome completo \"Gattarella Resort\". L'esclamativo è stato sostituito dalle lettere mancanti, ottenendo il nome corretto senza aggiungere altri termini."
+    ]
+  },
+  {
+    "nome": "TORRE GUACETO GREENBLU RESORT",
+    "pagine": [
+      14,
+      15
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "ACAYA GOLF RESORT & SPA",
+    "pagine": [
+      16,
+      17
+    ],
+    "confidence": 0.6774,
+    "needs_review": true,
+    "warnings": []
+  },
+  {
+    "nome": "KOINÈ",
+    "pagine": [
+      18,
+      19
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "ROBINSON APULIA",
+    "pagine": [
+      20,
+      21
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "VILLAGGIO ESPERIA PALACE",
+    "pagine": [
+      22,
+      23
+    ],
+    "confidence": 0.6452,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: L'esclamativo \"!\" nei punti \"VIL!GGIO\" e \"PA!CE\" indica caratteri mancanti dovuti a errori OCR. Dal contesto dell'header (che riporta lo stesso nome con gli stessi artefatti) e dalla consueta struttura dei nomi di strutture ricettive (es. VILLAGGIO, PALACE) si ricostruisce il nome corretto: VILLAGGIO ESPERIA PALACE."
+    ]
+  },
+  {
+    "nome": "ANTICA MASSERIA ROTTACAPOZZA",
+    "pagine": [
+      24,
+      25
+    ],
+    "confidence": 0.5895,
+    "needs_review": true,
+    "warnings": []
+  },
+  {
+    "nome": "BAIAMALVA RESORT",
+    "pagine": [
+      26,
+      27
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "HOTEL BAIA SANTA BARBARA",
+    "pagine": [
+      28,
+      29
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "VILLAGGIO CAMPING INTERNAZIONALE MANACORE",
+    "pagine": [
+      30,
+      31
+    ],
+    "confidence": 0.8478,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: Nel titolo grezzo la sequenza \"VIL ! GGIO\" contiene un segno di disturbo \"!\" al posto della lettera mancante. Sostituendo \"!\" con \"L\" si ottiene la parola corretta \"VILLAGGIO\", coerente con il contesto del testo e dell'header. Il resto del titolo era già corretto."
+    ]
+  },
+  {
+    "nome": "PAGLIANZA",
+    "pagine": [
+      32,
+      33
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "Pizzomunno Vieste Palace",
+    "pagine": [
+      34,
+      35
+    ],
+    "confidence": 0.8364,
+    "needs_review": false,
+    "warnings": [
+      "artefatto_ocr_nel_titolo",
+      "Titolo corretto automaticamente: Nel titolo grezzo la sequenza \"PA \\\" CE\" contiene virgolette isolate al posto della lettera L, formando la parola tronca PA L ACE. Ricostruendo il nome completo dell'hotel, si ottiene 'Pizzomunno Vieste Palace', che corrisponde al brand indicato nell'header."
+    ]
+  },
+  {
+    "nome": "HOTEL DEL FARO PUGNOCHIUSO RESORT",
+    "pagine": [
+      36,
+      37
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "HOTEL DEGLI ULIVI PUGNOCHIUSO RESORT",
+    "pagine": [
+      38,
+      39
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  }
+]

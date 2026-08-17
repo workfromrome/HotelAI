@@ -1,0 +1,47 @@
+{
+  "HOTEL THA \" S CLUB": {
+    "corrected_title": "HOTEL THA'S CLUB",
+    "was_corrected": true,
+    "explanation": "Nel titolo grezzo la sequenza THA \" S contiene un apice errato (virgolette isolate). L'apostrofo è l'elemento tipico per indicare la forma contratta 'THA'S'. Ho sostituito le virgolette con un apostrofo, ottenendo il nome corretto HOTEL THA'S CLUB, coerente con l'header."
+  },
+  "VOI DANIE \" ESSENTIA": {
+    "corrected_title": "VOI DANIE' ESSENTIA",
+    "was_corrected": true,
+    "explanation": "Nel titolo grezzo la sequenza \" appare come un artefatto OCR. Nella lingua italiana è tipico l'uso dell'apostrofo per indicare la contrazione di una parola (es. \"DANIE'\"). Pertanto la parola corretta è \"VOI DANIE' ESSENTIA\", mantenendo tutti gli elementi presenti nel testo e rimuovendo solo il carattere di rumore."
+  },
+  "TORRE CINTO \" GREENBLU SEA EMOTIONS": {
+    "corrected_title": "TORRE CINTOLA GREENBLU SEA EMOTIONS",
+    "was_corrected": true,
+    "explanation": "Nel titolo grezzo la parola \"TORRE CINTO \" contiene un apice che rappresenta la parte mancante della parola. Dal contesto dell'header e dalla descrizione del resort (\"contrada Torre Cintola\") si ricostruisce il nome corretto della località come \"TORRE CINTOLA\". Dopo aver aggiunto la parte mancante, il nome completo dell'hotel diventa \"TORRE CINTOLA GREENBLU SEA EMOTIONS\"."
+  },
+  "GATTAREL ! RESORT": {
+    "corrected_title": "Gattarella Resort",
+    "was_corrected": true,
+    "explanation": "The raw title \"GATTAREL ! RESORT\" contains an exclamation mark where the letters \"LA\" are missing. The header and the description repeatedly refer to the property as \"Il Gattarella Resort\". By restoring the missing \"LA\" and applying normal title case, the correct hotel name is \"Gattarella Resort\"."
+  },
+  "ACAYA GOLF RESORT & SPA": {
+    "corrected_title": "Acaya Golf Resort & Spa",
+    "was_corrected": true,
+    "explanation": "Il titolo originale era in maiuscolo completo 'ACAYA GOLF RESORT & SPA' e conteneva solo artefatti di formattazione. È stato normalizzato in Title Case per coerenza con gli standard editoriali, mantenendo l'ampersand e la parola 'Spa' senza alterare alcun contenuto."
+  },
+  "VIL ! GGIO ESPERIA PA ! CE": {
+    "corrected_title": "VILLAGGIO ESPERIA PALACE",
+    "was_corrected": true,
+    "explanation": "Gli artefatti 'VIL ! GGIO' e 'PA ! CE' indicano mancanza di lettere. Sostituendo il segno '!' con le lettere mancanti si ottiene 'VILLAGGIO' e 'PALACE', formando il nome completo dell'hotel come indicato anche nell'header del PDF."
+  },
+  "ANTICA MASSERIA ROTTACAPOZZA": {
+    "corrected_title": "ANTICA MASSERIA ROTTACAPOZZA",
+    "was_corrected": false,
+    "explanation": "The raw title matches the header and contains no typographic or OCR artifacts; therefore no changes are required."
+  },
+  "VIL ! GGIO CAMPING INTERNAZIONALE MANACORE": {
+    "corrected_title": "VILLAGGIO CAMPING INTERNAZIONALE MANACORE",
+    "was_corrected": true,
+    "explanation": "L'articolo contiene un punto esclamativo inserito al posto della lettera 'L' nella parola 'VIL!GGIO', tipico di un errore di OCR o di font. Sostituendo il segno con la lettera mancante si ottiene il nome corretto 'VILLAGGIO', mantenendo il resto del titolo invariato."
+  },
+  "PIZZOMUNNO VIESTE PA \" CE": {
+    "corrected_title": "Pizzomunno Vieste Palace",
+    "was_corrected": true,
+    "explanation": "The raw title contained the fragment \"PA \\\" CE\" caused by OCR errors. Context from the header and description shows the hotel is referred to as \"Pizzomunno Vieste Palace\" (the 5‑star Palace category). The fragment was therefore reconstructed to the full word \"Palace\", yielding the correct hotel name."
+  }
+}

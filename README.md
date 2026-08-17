@@ -76,7 +76,7 @@ Per la verifica offline senza API key, eseguire `python scripts/run_pipeline.py 
 
 Il raggruppamento individua le intestazioni delle schede nel testo PDF e associa la pagina seguente. Se un catalogo non conserva le intestazioni, usa il fallback strutturale “introduzione + coppie di pagine”. I nomi non sono mantenuti in liste applicative: sono estratti dall'intestazione e normalizzati solo per correggere artefatti OCR evidenti.
 
-`GOOGLE_MODEL`, `EMBEDDING_MODEL`, `REQUEST_DELAY_SECONDS` e `MAX_RETRIES` sono configurabili in `.env`. Gli errori Google 404, 429 e 5xx sono espliciti; 429 e 5xx vengono ritentati con backoff. `data/processed/extraction_state.json` permette il resume senza ripetere record già validati.
+`GOOGLE_MODEL`, `GROQ_MODEL`, `EMBEDDING_MODEL`, `REQUEST_DELAY_SECONDS`, `GEMINI_REQUESTS_PER_MINUTE`, `GROQ_REQUESTS_PER_MINUTE` e `MAX_RETRIES` sono configurabili in `.env`. Gli errori Google 404, 429 e 5xx sono espliciti; 429 e 5xx vengono ritentati con backoff. `data/processed/extraction_state.json` permette il resume senza ripetere record già validati.
 
 ## Dati estratti e qualità
 
@@ -115,12 +115,12 @@ PDF
  ├─ pdfplumber                 -> segmentazione canonica
  └─ PyMuPDF get_text("dict")   -> header BBox/font-size
                                   -> ExtractionQuality
-                                  -> correzione Gemini mirata
+                                  -> correzione titolo mirata (Groq/Gemini)
                                   -> HotelRecord
                                   -> ChromaDB / Retriever
-                                  -> RAGEngine -> FastMCP
+                                  -> RAGEngine -> FastMCP (RAGEngine non ancora esposto come tool MCP)
 ```
 
-PyMuPDF usa filtri spaziali e tipografici per isolare il nome nell’header. I record con `quality.needs_review=True` possono essere inviati a Gemini Flash per la correzione del titolo; i record ad alta confidence non consumano chiamate API. `RAGEngine` recupera i documenti più rilevanti, genera una risposta italiana con Gemini e include le pagine sorgente; quando il contesto non è sufficiente restituisce `Informazione non sufficiente nei documenti forniti`.
+PyMuPDF usa filtri spaziali e tipografici per isolare il nome nell’header. I record con `quality.needs_review=True` possono essere inviati alla correzione titolo: Groq (`openai/gpt-oss-120b`, free tier 30 RPM / 1.000 richieste al giorno) è il provider di default, con fallback automatico su Gemini Flash quando Groq non è configurato o esaurisce i retry (limite giornaliero Gemini free tier osservato: 20 richieste/modello); i record ad alta confidence non consumano chiamate API. Ogni provider ha un proprio timer di backoff calcolato sul proprio limite RPM configurato, così i due limiti non si mescolano mai. `RAGEngine` (`src/rag/rag_engine.py`) recupera i documenti più rilevanti e genera una risposta italiana con citazioni di pagina usando la stessa cascata Groq-poi-Gemini (senza retry/backoff, essendo sul percorso di query interattiva); quando il contesto non è sufficiente, entrambi i provider falliscono o la query è vuota, restituisce sempre `Informazione non sufficiente nei documenti forniti` senza sollevare eccezioni.
 
 Questa sezione è temporanea e verrà consolidata insieme alla documentazione della futura webapp.

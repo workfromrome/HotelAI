@@ -1,6 +1,7 @@
 chromadb>=1,<2
 fastmcp>=2,<3
 google-genai>=1,<2
+groq>=1,<2
 pdfplumber>=0.11,<1
 PyMuPDF>=1.24,<2
 pydantic>=2,<3

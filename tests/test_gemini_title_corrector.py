@@ -1,6 +1,10 @@
+from pathlib import Path
 from unittest.mock import Mock, patch
 
-from ingestion.gemini_title_corrector import TitleCorrectionResult, correct_reviewed_titles
+import pytest
+
+from fde_hotel_rag.config import settings
+from ingestion.gemini_title_corrector import TitleCorrectionResult, correct_hotel_title, correct_reviewed_titles
 from ingestion.pdf_parser import HotelBlock
 from ingestion.quality_model import ExtractionQuality
 
@@ -27,3 +31,30 @@ def test_high_confidence_titles_do_not_call_gemini(mock_correct: Mock) -> None:
     result = correct_reviewed_titles([_block("BRAVO ALIMINI", False)], enabled=True)
     assert result[0].title == "BRAVO ALIMINI"
     mock_correct.assert_not_called()
+
+
+def test_cached_title_returns_without_calling_any_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Level 2 cassette test: a title present in the real-response cache never touches Groq or Gemini."""
+    monkeypatch.setattr(settings, "llm_cache_path", Path("tests/fixtures/llm_cached_responses.json"))
+
+    def _fail(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("non deve contattare alcun provider quando il titolo è in cache")
+
+    monkeypatch.setattr("ingestion.gemini_title_corrector._call_groq", _fail)
+    monkeypatch.setattr("ingestion.gemini_title_corrector._call_gemini", _fail)
+
+    result = correct_hotel_title("GATTAREL ! RESORT", "GATTAREL ! RESORT", 12)
+
+    assert result.was_corrected is True
+    assert result.corrected_title == "Gattarella Resort"
+
+
+def test_uncached_title_falls_back_to_raw_when_no_provider_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "llm_cache_path", Path("tests/fixtures/does_not_exist.json"))
+    monkeypatch.setattr(settings, "groq_api_key", None)
+    monkeypatch.setattr(settings, "google_api_key", None)
+
+    result = correct_hotel_title("TITOLO SCONOSCIUTO", "TITOLO SCONOSCIUTO", 2)
+
+    assert result.was_corrected is False
+    assert result.corrected_title == "TITOLO SCONOSCIUTO"

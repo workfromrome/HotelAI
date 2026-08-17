@@ -1,0 +1,206 @@
+[
+  {
+    "nome": "BRAVO ALIMINI",
+    "pagine": [
+      2,
+      3
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "HOTEL THA \" S CLUB",
+    "pagine": [
+      4,
+      5
+    ],
+    "confidence": 0.5833,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "VOI DANIE \" ESSENTIA",
+    "pagine": [
+      6,
+      7
+    ],
+    "confidence": 0.75,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "TORRE CINTO \" GREENBLU SEA EMOTIONS",
+    "pagine": [
+      8,
+      9
+    ],
+    "confidence": 0.8354,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "MASSERIA BARONI DI MONTESARDO",
+    "pagine": [
+      10,
+      11
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "GATTAREL ! RESORT",
+    "pagine": [
+      12,
+      13
+    ],
+    "confidence": 0.7317,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "TORRE GUACETO GREENBLU RESORT",
+    "pagine": [
+      14,
+      15
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "ACAYA GOLF RESORT & SPA",
+    "pagine": [
+      16,
+      17
+    ],
+    "confidence": 0.6774,
+    "needs_review": true,
+    "warnings": []
+  },
+  {
+    "nome": "KOINÈ",
+    "pagine": [
+      18,
+      19
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "ROBINSON APULIA",
+    "pagine": [
+      20,
+      21
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "VIL ! GGIO ESPERIA PA ! CE",
+    "pagine": [
+      22,
+      23
+    ],
+    "confidence": 0.6452,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "ANTICA MASSERIA ROTTACAPOZZA",
+    "pagine": [
+      24,
+      25
+    ],
+    "confidence": 0.5895,
+    "needs_review": true,
+    "warnings": []
+  },
+  {
+    "nome": "BAIAMALVA RESORT",
+    "pagine": [
+      26,
+      27
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "HOTEL BAIA SANTA BARBARA",
+    "pagine": [
+      28,
+      29
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "VIL ! GGIO CAMPING INTERNAZIONALE MANACORE",
+    "pagine": [
+      30,
+      31
+    ],
+    "confidence": 0.8478,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "PAGLIANZA",
+    "pagine": [
+      32,
+      33
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "PIZZOMUNNO VIESTE PA \" CE",
+    "pagine": [
+      34,
+      35
+    ],
+    "confidence": 0.8364,
+    "needs_review": true,
+    "warnings": [
+      "artefatto_ocr_nel_titolo"
+    ]
+  },
+  {
+    "nome": "HOTEL DEL FARO PUGNOCHIUSO RESORT",
+    "pagine": [
+      36,
+      37
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  },
+  {
+    "nome": "HOTEL DEGLI ULIVI PUGNOCHIUSO RESORT",
+    "pagine": [
+      38,
+      39
+    ],
+    "confidence": 1.0,
+    "needs_review": false,
+    "warnings": []
+  }
+]
