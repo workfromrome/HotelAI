@@ -19,12 +19,15 @@ logger = logging.getLogger(__name__)
 
 FALLBACK_MESSAGE = "Informazione non sufficiente nei documenti forniti"
 
-RAG_SYSTEM_PROMPT = f"""Sei un assistente virtuale esperto per il catalogo turistico Hotel.
-Rispondi in italiano alla domanda dell'utente basandoti ESCLUSIVAMENTE sul CONTESTO fornito.
+CONVERSATIONAL_RAG_PROMPT = f"""Sei uno specialista e consulente di viaggio esperto per il catalogo Hotel.
+Rispondi alla domanda dell'utente in modo naturale, fluido, caldo ed elegante in italiano, basandoti ESCLUSIVAMENTE sui documenti forniti nel CONTESTO.
 
-REGOLE TASSATIVE:
-1. Inserisci sempre le citazioni delle pagine sorgente tra parentesi quadre (es. [Pag. 2-3]).
-2. REGOLA DI FALLBACK TASSATIVA: Se il contesto fornito NON contiene le informazioni sufficienti per rispondere in modo preciso alla domanda dell'utente, restituisci ESATTAMENTE e SOLTANTO la stringa:
+STYLE & FORMATTING GUIDELINES:
+1. TONO NATURALE: rispondi in modo conversazionale (come un concierge di un hotel di lusso o un consulente turistico), presentando le strutture in modo discorsivo ed invitante.
+2. NIENTE TABELLE RIGIDE: non generare tabelle Markdown con i tubi (|...|). Usa invece brevi paragrafi introduttivi e liste puntate stilizzate con i nomi degli hotel in grassetto.
+3. CITAZIONE DELLE PAGINE: inserisci la citazione dell'intervallo di pagine alla fine della descrizione di ciascun hotel tra parentesi quadre (es. [Pag. 4-5]).
+4. DETTAGLI UTILI: metti in evidenza i punti di forza richiesti dall'utente (es. vicinanza al mare, piscine, servizi per famiglie, trattamenti).
+5. REGOLA DI FALLBACK TASSATIVA: se le informazioni nel contesto non sono sufficienti per rispondere alla domanda, restituisci ESATTAMENTE la stringa:
 "{FALLBACK_MESSAGE}"
 """
 
@@ -59,7 +62,7 @@ def _groq_answer(client: Any, prompt: str) -> str:
     response = client.chat.completions.create(
         model=settings.groq_model,
         messages=[
-            {"role": "system", "content": RAG_SYSTEM_PROMPT},
+            {"role": "system", "content": CONVERSATIONAL_RAG_PROMPT},
             {"role": "user", "content": prompt},
         ],
     )
@@ -70,7 +73,7 @@ def _gemini_answer(client: Any, prompt: str) -> str:
     response = client.models.generate_content(
         model=settings.google_model,
         contents=prompt,
-        config={"system_instruction": RAG_SYSTEM_PROMPT},
+        config={"system_instruction": CONVERSATIONAL_RAG_PROMPT},
     )
     return str(response.text).strip()
 

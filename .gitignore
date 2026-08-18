@@ -9,3 +9,4 @@ data/processed/*.md
 data/processed/extraction_state.json
 data/processed/*.csv
 data/processed/chromadb/
+work_done.md

@@ -97,6 +97,23 @@ Il JSONL è lo storage canonico auditabile; il CSV è una vista tabellare. I rec
 }
 ```
 
+## Web App (chatbot)
+
+Backend FastAPI (`src/api/main.py`) e frontend React/Vite (`frontend/`), tema scuro stile ChatGPT/Claude:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m uvicorn api.main:app --reload --port 8000
+```
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Il frontend gira su `http://localhost:5173` e proxya `/api/*` verso il backend su `http://localhost:8000` (`vite.config.js`); il backend ha anche CORS aperto verso `localhost:5173` come seconda difesa. Endpoint: `POST /api/chat`, `GET /api/hotels` (19 record canonici da `data/processed/hotels_data.jsonl`), `GET /api/health`. Le risposte dell'assistente non vengono renderizzate come Markdown (nessuna libreria aggiunta per questo) — testo semplice con interruzioni di riga preservate.
+
 ## Verification
 
 ```powershell

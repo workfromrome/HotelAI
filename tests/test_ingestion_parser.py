@@ -38,10 +38,60 @@ def test_pymupdf_candidate_has_clean_header_names() -> None:
     assert blocks[0].title == "BRAVO ALIMINI"
     titles = [block.title for block in blocks]
     assert "CATEGORIA UFFICIALE" not in " ".join(titles).upper()
+    # blocks[1]/[2] (THALAS CLUB, DANIELA ESSENTIA) usano il glifo decorativo "LA": la
+    # sostituzione deterministica in pymupdf_parser li rende puliti, needs_review=False.
     assert blocks[1].quality is not None
-    assert blocks[1].quality.needs_review is True
+    assert blocks[1].quality.needs_review is False
     assert blocks[2].quality is not None
-    assert blocks[2].quality.needs_review is True
+    assert blocks[2].quality.needs_review is False
     for block in blocks:
         assert "CATEGORIA UFFICIALE" not in block.title.upper()
         assert "AILGUP" not in block.title.upper()
+
+
+# Nome/localita di verita per i 19 record, ricavati dagli span reali (font size 30pt = nome,
+# 11pt = localita) e confermati contro gli screenshot delle schede originali. Copre i due
+# layout di pagina del catalogo (compatto e con banner PUGLIA) e il glifo decorativo "LA"
+# (reso da pymupdf come span isolato '"' o '!') presente in 6 delle 19 schede.
+_EXPECTED_NAME_LOCALITY = [
+    ("BRAVO ALIMINI", "OTRANTO"),
+    ("HOTEL THALAS CLUB", "TORRE DELL'ORSO"),
+    ("VOI DANIELA ESSENTIA", "OTRANTO"),
+    ("TORRE CINTOLA GREENBLU SEA EMOTIONS", "MONOPOLI"),
+    ("MASSERIA BARONI DI MONTESARDO", "LIDO MARINI"),
+    ("GATTARELLA RESORT", "VIESTE"),
+    ("TORRE GUACETO GREENBLU RESORT", "CAROVIGNO"),
+    ("ACAYA GOLF RESORT & SPA", "ACAYA"),
+    ("KOINÈ", "ALIMINI"),
+    ("ROBINSON APULIA", "MARINA DI UGENTO"),
+    ("VILLAGGIO ESPERIA PALACE", "LIDO MARINI"),
+    ("ANTICA MASSERIA ROTTACAPOZZA", "TORRE MOZZA"),
+    ("BAIAMALVA RESORT", "PORTO CESAREO"),
+    ("HOTEL BAIA SANTA BARBARA", "RODI GARGANICO"),
+    ("VILLAGGIO CAMPING INTERNAZIONALE MANACORE", "PESCHICI"),
+    ("PAGLIANZA", "PESCHICI"),
+    ("PIZZOMUNNO VIESTE PALACE", "VIESTE"),
+    ("HOTEL DEL FARO PUGNOCHIUSO RESORT", "PUGNOCHIUSO"),
+    ("HOTEL DEGLI ULIVI PUGNOCHIUSO RESORT", "PUGNOCHIUSO"),
+]
+
+
+def test_all_19_records_have_clean_name_and_locality() -> None:
+    """Nome e localita non devono mai risultare impastati, sui due layout di pagina del catalogo."""
+    blocks = load_pymupdf_hotel_blocks(PDF)
+    assert len(blocks) == len(_EXPECTED_NAME_LOCALITY)
+    for index, (block, (expected_name, expected_locality)) in enumerate(
+        zip(blocks, _EXPECTED_NAME_LOCALITY, strict=True), 1
+    ):
+        assert block.title == expected_name, f"record {index}: nome inatteso"
+        assert block.locality == expected_locality, f"record {index}: localita inattesa"
+
+
+def test_novita_badge_is_never_leaked_into_name_or_locality() -> None:
+    """La scheda Acaya (pagina con badge NOVITA) non deve contenere il badge in nome/localita."""
+    blocks = load_pymupdf_hotel_blocks(PDF)
+    acaya = next(block for block in blocks if block.locality == "ACAYA")
+    assert acaya.title == "ACAYA GOLF RESORT & SPA"
+    tokens = f"{acaya.title} {acaya.locality}".upper().split()
+    assert "NOVITA" not in "".join(tokens)
+    assert not any(len(token) == 1 and token in "NOVITÀ" for token in tokens)

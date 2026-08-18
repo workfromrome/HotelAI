@@ -21,6 +21,7 @@ class HotelBlock:
     quality: ExtractionQuality | None = None
     header_raw_text: str = ""
     page_num: int = 0
+    locality: str = ""
 
 
 _OCR_REPLACEMENTS = {

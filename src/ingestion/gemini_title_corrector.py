@@ -74,6 +74,7 @@ Il tuo compito è ricostruire il nome proprio corretto dell'hotel usando esclusi
 3. USO DEL CONTESTO: usa l'header di pagina fornito per disambiguare il nome del brand quando il titolo grezzo è ambiguo o incompleto.
 4. NESSUNA INVENZIONE: correggi solo artefatti tipografici/OCR; non introdurre parole non supportate dal testo fornito.
 5. FORMATTAZIONE: restituisci il nome con spaziatura pulita, senza virgolette o punti esclamativi spuri.
+6. ISOLAMENTO DEL NOME PROPRIO: estrai SOLO il nome proprio della struttura (es. "ANTICA MASSERIA ROTTACAPOZZA"). Rimuovi dal titolo i numeri di pagina, i banner di regione (es. "AILGUP", "PUGLIA") e la località/comune: appartengono a campi separati, non al nome della struttura.
 
 Restituisci sempre un JSON conforme allo schema richiesto."""
 

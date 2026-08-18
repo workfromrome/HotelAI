@@ -13,9 +13,11 @@
   - `retriever.py`: maximum-five-result search and ranking.
 - `src/rag/rag_engine.py`: `RAGEngine`/`answer_query` conversational synthesis over `HotelRetriever` results; tries Groq first, falls back to Gemini, then to the fixed fallback string `FALLBACK_MESSAGE`. Not yet wired into `mcp_server`.
 - `src/mcp_server/server.py`: canonical FastMCP server and `search_hotels(query)` tool. Does not yet expose the RAG engine's natural-language synthesis, only raw retrieval.
+- `src/api/main.py`: FastAPI HTTP layer for the React frontend — `POST /api/chat` (`RAGEngine.answer_query`), `GET /api/hotels` (reads `settings.hotel_records_path`, i.e. `data/processed/hotels_data.jsonl`, the canonical `HotelRecord`-schema export — not the legacy `hotels.jsonl`), `GET /api/health` (Chroma connectivity/count + Groq/Gemini key presence). Retriever/RAG-engine access is via `Depends(get_retriever)`/`Depends(get_rag_engine)`, overridable in tests; the real Chroma index is only built in the `lifespan` startup hook, so tests never touch it unless they opt in. CORS is open to `http://localhost:5173` (Vite dev server) only. Run: `uvicorn api.main:app --reload --port 8000` (`PYTHONPATH=src`, from repo root).
+- `frontend/`: Vite + React chatbot UI (dark theme, ChatGPT/Claude-style layout). Talks to the backend via `/api/*`, proxied to `localhost:8000` by `vite.config.js` in dev — CORS is also configured on the backend as a second line of defense. `src/components/`: `Sidebar.jsx` (status, 5 quick queries, hotel catalog accordion), `ChatArea.jsx` (hero view, message bubbles, page-range citation badges, typing indicator), `InputBar.jsx`. `src/styles/app.css` holds the whole design (CSS variables for the zinc/emerald palette). No markdown renderer is wired in — assistant answers render as `white-space: pre-wrap` plain text, so literal `**bold**`/table-pipe markup from the LLM is visible as-is; add `react-markdown` if that needs to render properly. Run: `cd frontend && npm install && npm run dev` (port 5173). `.claude/launch.json` has a `frontend` config for the `preview_start` tool.
 - `src/fde_hotel_rag/`: configuration, canonical schema, storage/protocols and temporary legacy compatibility wrappers.
 - `scripts/run_pipeline.py`: primary ingestion entry point; `--offline` skips API calls and indexing.
-- `tests/`: unit/integration-style tests for parsing, extraction, Chroma, retrieval and MCP.
+- `tests/`: unit/integration-style tests for parsing, extraction, Chroma, retrieval, MCP and the FastAPI layer (`test_api.py`, 100% mocked via `app.dependency_overrides`).
 - `scripts/compare_pdf_extractors.py`: comparison-only PyMuPDF extraction benchmark.
 - `scripts/run_title_ab_benchmark.py`: writes deterministic and LLM title outputs for A/B review.
 
@@ -37,9 +39,22 @@ PDF -> ingestion -> HotelRecord -> CSV/JSONL -> Gemini embeddings -> ChromaDB ->
 - Do not add hotel names/locality lists or provider-specific constants outside configuration.
 - Use `settings` from `src/fde_hotel_rag/config.py`; do not add new `os.getenv()` calls in application modules.
 - Title correction uses `GeminiTitleCorrectionPayload` as the shared response schema for both providers; do not pass audit models containing open-ended dictionaries as a provider schema.
+- `GENERIC_TITLE_CORRECTOR_PROMPT` rule 6 ("ISOLAMENTO DEL NOME PROPRIO") tells the model to strip page numbers, region banners (e.g. `AILGUP`, `PUGLIA`) and locality/comune from the corrected title — those belong in separate fields, not the hotel name. This is prompt-level only (no regex/code-level stripping); verified 2026-08-18 on a real bloated title (`Marina di Ugento AILGUP 46 ANTICA MASSERIA ROTTACAPOZZA TORRE MOZZA` → `ANTICA MASSERIA ROTTACAPOZZA TORRE MOZZA`) — locality and banner were correctly dropped, but `TORRE MOZZA` (arguably still a locality fragment) was retained; not fully reliable yet, revisit if it recurs across the full 9-title cache.
 - `correct_hotel_title` first checks `settings.llm_cache_path` (`tests/fixtures/llm_cached_responses.json`, keyed by raw title) for a previously-captured real response; on a hit it returns immediately with zero API calls. On a cache miss it tries Groq first (default, `openai/gpt-oss-120b`, JSON Schema mode), then Gemini as fallback, then the raw title. Each provider retries only `429`/`503` with its own backoff timer derived from its own configured RPM (`min_interval = 60 / rpm`, delays `min_interval * 2^attempt` for 3 attempts) — Groq's 30 RPM and Gemini's 5 RPM never share a schedule. After a provider's retries are exhausted it logs a warning and the cascade moves to the next provider; after all providers fail it returns the raw title and logs a warning. It never raises.
 - Testing tiers (do not blur these): (1) routine `pytest` must be 100% mocked, 0 API calls; (2) `tests/fixtures/llm_cached_responses.json` holds real captured Groq responses keyed by raw title, used to exercise the real `correct_hotel_title` code path (schema parsing, quality update) without network — regenerate it only with explicit user approval, since that requires live calls; (3) `scripts/run_title_ab_benchmark.py` and any other live-API script/diagnostic run only on explicit user request, never automatically or repeatedly.
 - `RAGEngine.answer_query` uses the same Groq-first/Gemini-fallback cascade as title correction, but as a single synchronous attempt per provider (no sleep-based retry/backoff, since it is on the interactive query path, not a batch job). On empty query, empty retrieval results, or both providers failing/unavailable it returns `FALLBACK_MESSAGE` (`"Informazione non sufficiente nei documenti forniti"`) with `is_fallback=True` and never raises.
+- `CONVERSATIONAL_RAG_PROMPT` (was `RAG_SYSTEM_PROMPT`) asks for a warm, discursive concierge tone with bolded hotel names in a bullet list and explicitly forbids Markdown pipe tables (`|...|`) — the frontend's `react-markdown` table styling still exists for whatever the model actually returns, but is no longer the expected shape. Page citations (`[Pag. x-y]`) stay inline per hotel; the frontend strips these from rendered prose (`stripPageCitations`) since the page badges already show them.
+
+## Workflow for significant changes
+
+For important, non-trivial changes (new features, architectural changes, breaking changes — not small fixes or tweaks), follow this sequence using the project's installed skills, in order:
+
+1. `/wayfinder` — chart the work as decision tickets before committing to an approach; use for anything too big or too foggy for a single planning pass.
+2. `/grill-with-docs` — stress-test the resulting plan/design via a relentless interview; also produces ADRs/glossary entries as a side effect.
+3. `/writing-plans` — turn the sharpened decisions into a concrete, step-by-step implementation plan.
+4. `/implement` — execute the plan (TDD where possible, regular test/typecheck runs, `/code-review` before commit).
+
+Do not skip straight to implementation for changes of this size; small/local fixes do not need this pipeline.
 
 ## Execution guardrails
 
@@ -99,6 +114,21 @@ $env:PYTHONPATH = "src"
 ```
 
 The benchmark writes `data/processed/records_without_llm.json` and `data/processed/records_with_llm.json`. It calls Gemini only for PyMuPDF blocks with `quality.needs_review == True`. Respect the configured 5 RPM limit; do not rerun repeatedly when the project quota is exhausted.
+
+Web app (backend + frontend):
+
+```powershell
+$env:PYTHONPATH = "src"
+& .\.venv\Scripts\python.exe -m uvicorn api.main:app --reload --port 8000
+```
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Verified 2026-08-18: with the real indexed Chroma collection and both `GROQ_API_KEY`/`GOOGLE_API_KEY` configured, `GET /api/health` reports `status: "ok"`, `GET /api/hotels` returns the 19 canonical records, and `POST /api/chat` returns real Groq-generated answers with correct `[Pag. x-y]` citations end to end through the React UI (desktop and the mobile off-canvas sidebar). `tests/test_api.py` covers the same endpoints with `app.dependency_overrides` (zero network calls, per the testing tiers in `AGENTS.md`/memory).
 
 ## Known gotchas and technical debt
 

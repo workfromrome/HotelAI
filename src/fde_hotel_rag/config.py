@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     @property
     def csv_path(self) -> Path: return self.data_dir / "processed" / "hotels.csv"
     @property
+    def hotel_records_path(self) -> Path: return self.data_dir / "processed" / "hotels_data.jsonl"
+    @property
     def chroma_path(self) -> Path: return self.data_dir / "processed" / "chromadb"
     @property
     def state_path(self) -> Path: return self.data_dir / "processed" / "extraction_state.json"

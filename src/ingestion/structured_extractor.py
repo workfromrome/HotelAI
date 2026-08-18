@@ -5,7 +5,8 @@ import re
 import csv
 from pathlib import Path
 
-from .pdf_parser import HotelBlock, load_hotel_blocks
+from .pdf_parser import HotelBlock
+from .pymupdf_parser import load_pymupdf_hotel_blocks
 from fde_hotel_rag.schemas import HotelRecord
 from fde_hotel_rag.schemas import HotelRating, VisualRatings
 from fde_hotel_rag.config import settings
@@ -75,17 +76,17 @@ def _header_fields(block: HotelBlock) -> tuple[int | None, list[dict], list[str]
 def _offline(block: HotelBlock, index: int) -> HotelSchema:
     text = block.text.lower()
     title = block.title
-    locality = title.rsplit(" ", 1)[-1].title() if title else "Non specificata"
+    locality = block.locality.title() if block.locality else "Non specificata"
     treatment = next((term for term in ("tutto incluso", "pensione completa", "mezza pensione", "pernottamento e prima colazione") if term in text), None)
     category, evaluations, qualifiers = _header_fields(block)
     issues = []
     if len(title.split()) < 2:
         issues.append("nome_breve")
-    if locality == title:
+    if not block.locality:
         issues.append("localita_non_separata")
     field_confidence = {
         "nome": 0.45,
-        "localita": 0.35,
+        "localita": 0.9 if block.locality else 0.2,
         "categoria_ufficiale": 0.95 if category is not None else 0.2,
         "valutazioni": 0.7 if evaluations else 0.2,
         "qualificatori": 0.9 if qualifiers else 0.8,
@@ -152,7 +153,7 @@ def extract_block(block: HotelBlock, index: int, use_gemini: bool = True, pdf_pa
 
 
 def extract_catalogue(pdf_path: Path, output_path: Path, use_gemini: bool = True) -> list[HotelSchema]:
-    records = [extract_block(block, index, use_gemini, pdf_path) for index, block in enumerate(load_hotel_blocks(pdf_path), 1)]
+    records = [extract_block(block, index, use_gemini, pdf_path) for index, block in enumerate(load_pymupdf_hotel_blocks(pdf_path), 1)]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_csv(records, output_path)
     write_jsonl(records, output_path.with_suffix(".jsonl"))
