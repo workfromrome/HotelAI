@@ -25,23 +25,9 @@ class Settings(BaseSettings):
     @property
     def raw_text_path(self) -> Path: return self.data_dir / "raw" / "file_hotels.txt"
     @property
-    def jsonl_path(self) -> Path: return self.data_dir / "processed" / "hotels.jsonl"
-    @property
-    def csv_path(self) -> Path: return self.data_dir / "processed" / "hotels.csv"
-    @property
     def hotel_records_path(self) -> Path: return self.data_dir / "processed" / "hotels_data.jsonl"
     @property
     def chroma_path(self) -> Path: return self.data_dir / "processed" / "chromadb"
     @property
     def state_path(self) -> Path: return self.data_dir / "processed" / "extraction_state.json"
 settings = Settings()
-PROJECT_ROOT = Path.cwd()
-DATA_DIR = settings.data_dir
-RAW_TEXT_PATH = settings.raw_text_path
-CSV_PATH = settings.csv_path
-CHROMA_PATH = settings.chroma_path
-EXTRACTION_STATE_PATH = settings.state_path
-GOOGLE_MODEL = settings.google_model
-EMBEDDING_MODEL = settings.embedding_model
-MAX_RETRIES = settings.max_retries
-REQUEST_DELAY_SECONDS = settings.request_delay_seconds

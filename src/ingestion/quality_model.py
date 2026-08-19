@@ -3,7 +3,9 @@ from __future__ import annotations
 import re
 from pydantic import BaseModel, Field
 
-class ExtractionQuality(BaseModel):
+class CrossExtractorQuality(BaseModel):
+    """Confidence from comparing pdfplumber/PyMuPDF headers — distinct from HotelRecord.quality."""
+
     overall_confidence: float = Field(ge=0.0, le=1.0)
     field_confidence: dict[str, float] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
@@ -19,7 +21,7 @@ _HEADER_STOP_MARKERS = re.compile(r"CATEGORIA\s+UFFICIALE|VALUTAZIONE|INQUADRA\s
 _HEADER_NOISE_TOKENS = {"PUGLIA", "AILGUP", "NOVITA", "NOVITÀ"}
 
 
-def compute_field_confidence(nome: str, localita: str, header_raw_text: str) -> ExtractionQuality:
+def compute_field_confidence(nome: str, localita: str, header_raw_text: str) -> CrossExtractorQuality:
     """Self-check: every token in the raw header (before the first content marker) must be
     accounted for by either nome or localita. Replaces the old pymupdf-vs-pdfplumber comparison,
     which used the pdfplumber title (itself impastato with locality) as reference and therefore
@@ -44,4 +46,4 @@ def compute_field_confidence(nome: str, localita: str, header_raw_text: str) -> 
 
     score = 1.0 if not uncovered and _normalize_title(nome) and _normalize_title(localita) else 0.6
     field_confidence = {"nome": score, "localita": 1.0 if _normalize_title(localita) else 0.0}
-    return ExtractionQuality(overall_confidence=score, field_confidence=field_confidence, warnings=warnings, needs_review=score < 0.85 or bool(warnings))
+    return CrossExtractorQuality(overall_confidence=score, field_confidence=field_confidence, warnings=warnings, needs_review=score < 0.85 or bool(warnings))

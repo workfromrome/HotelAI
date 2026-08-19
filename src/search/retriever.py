@@ -17,9 +17,9 @@ class HotelRetriever:
         except Exception as exc: raise RuntimeError("Collection hotels non trovata: eseguire prima l'indicizzazione") from exc
         self.embedder = embedder or OfflineEmbedder()
 
-    def search_hotels(self, query: str, top_k: int = 5) -> list[dict]:
+    def search_hotels(self, query: str, top_k: int = settings.retrieval_limit) -> list[dict]:
         if not query.strip(): raise ValueError("La query non può essere vuota")
-        limit = min(max(top_k, 1), 5)
+        limit = min(max(top_k, 1), settings.retrieval_limit)
         result = self.collection.query(query_embeddings=self.embedder.embed([query]), n_results=limit, include=["documents", "metadatas", "distances"])
         matches = []
         for document, metadata, distance in zip(result["documents"][0], result["metadatas"][0], result["distances"][0], strict=True):
@@ -31,5 +31,3 @@ class HotelRetriever:
 def format_results(results: list[dict]) -> str:
     if not results: return "Nessuna struttura trovata."
     return "\n\n".join(f"### {i}. {r['metadata'].get('nome', 'Hotel')}\n- Località: {r['metadata'].get('localita', 'Non specificata')}\n- Stelle: {r['metadata'].get('stelle', 'non specificate')}\n- Similarità: {r['similarity']:.3f}\n- Scheda: {r['document'][:320]}" for i, r in enumerate(results, 1))
-
-search_hotels = HotelRetriever().search_hotels if False else None

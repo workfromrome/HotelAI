@@ -13,7 +13,12 @@ function StatusDot({ status }) {
       : status === 'degraded'
         ? 'Assistente con rallentamenti'
         : 'Assistente non disponibile'
-  const className = status === 'ok' ? 'status-dot status-dot--online' : 'status-dot status-dot--offline'
+  const className =
+    status === 'ok'
+      ? 'status-dot status-dot--online'
+      : status === 'degraded'
+        ? 'status-dot status-dot--degraded'
+        : 'status-dot status-dot--offline'
   return (
     <span className="status-indicator" title={label}>
       <span className={className} />

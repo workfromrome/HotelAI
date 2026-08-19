@@ -144,6 +144,11 @@
   box-shadow: 0 0 6px var(--online);
 }
 
+.status-dot--degraded {
+  background: var(--warning);
+  box-shadow: 0 0 6px var(--warning);
+}
+
 .status-dot--offline {
   background: var(--danger);
   box-shadow: 0 0 6px var(--danger);

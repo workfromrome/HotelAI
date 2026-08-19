@@ -6,11 +6,11 @@ import pytest
 from fde_hotel_rag.config import settings
 from ingestion.gemini_title_corrector import TitleCorrectionResult, correct_hotel_title, correct_reviewed_titles
 from ingestion.pdf_parser import HotelBlock
-from ingestion.quality_model import ExtractionQuality
+from ingestion.quality_model import CrossExtractorQuality
 
 
 def _block(title: str, needs_review: bool) -> HotelBlock:
-    return HotelBlock(title=title, pages=(2, 3), text=title, quality=ExtractionQuality(overall_confidence=0.5 if needs_review else 1.0, field_confidence={"nome": 0.5 if needs_review else 1.0}, needs_review=needs_review), header_raw_text=title, page_num=2)
+    return HotelBlock(title=title, pages=(2, 3), text=title, quality=CrossExtractorQuality(overall_confidence=0.5 if needs_review else 1.0, field_confidence={"nome": 0.5 if needs_review else 1.0}, needs_review=needs_review), header_raw_text=title, page_num=2)
 
 
 @patch("ingestion.gemini_title_corrector.correct_hotel_title")

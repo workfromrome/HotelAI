@@ -83,27 +83,3 @@ class HotelRecord(BaseModel):
 
     def metadata(self) -> dict[str, str]:
         return {field: " | ".join(map(str, value)) if isinstance(value, list) else str(value or "") for field, value in self.model_dump().items() if field != "descrizione"}
-
-    # Temporary read-only compatibility properties for legacy modules.
-    @property
-    def name(self) -> str: return self.nome
-    @property
-    def locality(self) -> str: return self.localita
-    @property
-    def region(self) -> str: return self.regione
-    @property
-    def stars(self) -> str | None: return self.stelle
-    @property
-    def treatment(self) -> list[str]: return [self.trattamento_principale] if self.trattamento_principale else []
-    @property
-    def room_types(self) -> list[str]: return []
-    @property
-    def services(self) -> list[str]: return self.caratteristiche_chiave
-    @property
-    def highlights(self) -> list[str]: return self.caratteristiche_chiave
-    @property
-    def description(self) -> str: return self.descrizione
-
-
-class HotelExtraction(BaseModel):
-    hotel: HotelRecord

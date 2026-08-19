@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pdfplumber
-from .quality_model import ExtractionQuality
+from .quality_model import CrossExtractorQuality
 
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class HotelBlock:
     words: tuple[dict[str, float | int | str], ...] = ()
     segmentation_confidence: float = 0.0
     segmentation_issues: tuple[str, ...] = ()
-    quality: ExtractionQuality | None = None
+    quality: CrossExtractorQuality | None = None
     header_raw_text: str = ""
     page_num: int = 0
     locality: str = ""

@@ -141,7 +141,7 @@ class RAGEngine:
         if not query.strip():
             return RAGResponse(answer=FALLBACK_MESSAGE, is_fallback=True)
 
-        results = self.retriever.search_hotels(query, top_k=min(max(top_k, 1), 5))
+        results = self.retriever.search_hotels(query, top_k=min(max(top_k, 1), settings.retrieval_limit))
         context, pages, hotels = self._context(results)
         if not results:
             return RAGResponse(answer=FALLBACK_MESSAGE, source_pages=pages, retrieved_hotels=hotels, is_fallback=True)
@@ -150,9 +150,3 @@ class RAGEngine:
         answer = self._generate_answer(prompt)
         is_fallback = answer == FALLBACK_MESSAGE
         return RAGResponse(answer=answer, source_pages=pages, retrieved_hotels=hotels, is_fallback=is_fallback)
-
-
-def answer_query(
-    query: str, vectorstore: Any, top_k: int = 3, groq_client: Any | None = None, gemini_client: Any | None = None
-) -> RAGResponse:
-    return RAGEngine(vectorstore, groq_client=groq_client, gemini_client=gemini_client).answer_query(query, top_k=top_k)
