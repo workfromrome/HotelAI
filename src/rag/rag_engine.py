@@ -1,7 +1,11 @@
 """Conversational RAG: retrieval + Groq/Gemini answer synthesis with page citations.
 
 Groq is tried first (default), Gemini is the fallback when Groq is not configured
-or its call fails, mirroring the provider cascade used for title correction.
+or its call fails — the same cascade shape used by structured_extractor's LLM review,
+but here as one synchronous attempt per provider (no retry/backoff: this runs on the
+interactive query path, not a batch job). RAGEngine only synthesizes natural-language
+answers; it does not touch the MCP server, which returns raw retrieval results instead
+(see mcp_server/server.py and search/retriever.py::format_results).
 """
 from __future__ import annotations
 
@@ -13,23 +17,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from fde_hotel_rag.config import settings
+from hotelai.config import settings
+from hotelai.prompts import load_prompt
 
 logger = logging.getLogger(__name__)
 
 FALLBACK_MESSAGE = "Informazione non sufficiente nei documenti forniti"
 
-CONVERSATIONAL_RAG_PROMPT = f"""Sei uno specialista e consulente di viaggio esperto per il catalogo Hotel.
-Rispondi alla domanda dell'utente in modo naturale, fluido, caldo ed elegante in italiano, basandoti ESCLUSIVAMENTE sui documenti forniti nel CONTESTO.
-
-STYLE & FORMATTING GUIDELINES:
-1. TONO NATURALE: rispondi in modo conversazionale (come un concierge di un hotel di lusso o un consulente turistico), presentando le strutture in modo discorsivo ed invitante.
-2. NIENTE TABELLE RIGIDE: non generare tabelle Markdown con i tubi (|...|). Usa invece brevi paragrafi introduttivi e liste puntate stilizzate con i nomi degli hotel in grassetto.
-3. CITAZIONE DELLE PAGINE: inserisci la citazione dell'intervallo di pagine alla fine della descrizione di ciascun hotel tra parentesi quadre (es. [Pag. 4-5]).
-4. DETTAGLI UTILI: metti in evidenza i punti di forza richiesti dall'utente (es. vicinanza al mare, piscine, servizi per famiglie, trattamenti).
-5. REGOLA DI FALLBACK TASSATIVA: se le informazioni nel contesto non sono sufficienti per rispondere alla domanda, restituisci ESATTAMENTE la stringa:
-"{FALLBACK_MESSAGE}"
-"""
+CONVERSATIONAL_RAG_PROMPT = load_prompt("conversational_rag").format(fallback_message=FALLBACK_MESSAGE)
 
 
 class RAGResponse(BaseModel):
@@ -40,6 +35,10 @@ class RAGResponse(BaseModel):
 
 
 def _pages(metadata: dict[str, Any]) -> list[int]:
+    """Chroma metadata only stores scalars, so vector_store.document_from_record joins
+    a HotelRecord's `source_pages` list into a "2 | 3" string; the regex branch here
+    parses that back out (the `isinstance(raw, list)` branch mainly covers direct-dict
+    metadata in tests, where no such flattening happened)."""
     raw = metadata.get("source_pages", [])
     if isinstance(raw, list):
         return [int(page) for page in raw]
@@ -125,6 +124,9 @@ class RAGEngine:
 
     @staticmethod
     def _context(results: Sequence[dict[str, Any]]) -> tuple[str, list[int], list[str]]:
+        """Builds the LLM prompt's CONTESTO block from retriever hits, and separately
+        collects the page numbers/hotel names so RAGResponse can carry citations even if
+        the LLM's own [Pag. x-y] text in the answer is missing or malformed."""
         chunks: list[str] = []
         pages: list[int] = []
         hotels: list[str] = []
@@ -138,6 +140,9 @@ class RAGEngine:
         return "\n\n".join(chunks), sorted(set(pages)), hotels
 
     def answer_query(self, query: str, top_k: int = 3) -> RAGResponse:
+        """Never raises. Falls back to FALLBACK_MESSAGE on an empty query, empty
+        retrieval, or both LLM providers failing/unavailable — is_fallback tells the
+        caller (POST /api/chat) which case happened without needing to inspect the text."""
         if not query.strip():
             return RAGResponse(answer=FALLBACK_MESSAGE, is_fallback=True)
 

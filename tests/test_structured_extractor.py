@@ -1,11 +1,12 @@
 from pathlib import Path
 import pytest
+from conftest import require_sample_pdf
 from ingestion.pdf_parser import HotelBlock
-from ingestion.structured_extractor import _needs_llm_fallback, _offline, extract_catalogue
-from fde_hotel_rag.schemas import ExtractionQuality, HotelRating, HotelRecord, HotelSource
+from ingestion.structured_extractor import _needs_llm_fallback, _offline, extract_catalogue, read_csv
+from hotelai.schemas import ExtractionQuality, HotelRating, HotelRecord, HotelSource
 
 def test_offline_structured_csv(tmp_path: Path) -> None:
-    pdf = Path(r"C:\Users\olso4\Downloads\FDE_test\FDE_test\FileHotels.pdf")
+    pdf = require_sample_pdf()
     output = tmp_path / "hotels_data.csv"
     records = extract_catalogue(pdf, output, use_gemini=False)
     assert len(records) == 19
@@ -14,6 +15,22 @@ def test_offline_structured_csv(tmp_path: Path) -> None:
     assert records[0].ha_piscina is True
     assert records[0].nome == "BRAVO ALIMINI"
     assert records[0].localita == "Otranto"
+
+
+def test_read_csv_round_trips_write_csv(tmp_path: Path) -> None:
+    pdf = require_sample_pdf()
+    output = tmp_path / "hotels_data.csv"
+    written = extract_catalogue(pdf, output, use_gemini=False)
+    imported = read_csv(output)
+    assert len(imported) == len(written)
+    for original, roundtripped in zip(written, imported, strict=True):
+        assert roundtripped.id == original.id
+        assert roundtripped.nome == original.nome
+        assert roundtripped.categoria_ufficiale == original.categoria_ufficiale
+        assert roundtripped.ha_piscina == original.ha_piscina
+        assert roundtripped.caratteristiche_chiave == original.caratteristiche_chiave
+        assert roundtripped.source.raw_text == original.source.raw_text
+        assert roundtripped.quality.confidence == original.quality.confidence
 
 
 def test_offline_uses_deterministic_locality_when_available() -> None:

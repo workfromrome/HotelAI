@@ -1,4 +1,11 @@
-"""Canonical hotel schema shared by extraction, storage, search and MCP."""
+"""Canonical hotel schema shared by extraction, storage, search and MCP.
+
+`HotelRecord` is the one shape every layer agrees on: `ingestion` produces it, it is
+serialized to CSV/JSONL, `search/vector_store.py` re-reads it via `read_csv`, and the
+MCP/RAG layers consume it via Chroma metadata. Field names are Italian because that is
+the delivered CSV's contract (`nome`, `localita`, ...); `AliasChoices` accepts the
+English equivalents too so records built programmatically in tests can use either.
+"""
 from __future__ import annotations
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -10,7 +17,7 @@ class HotelRating(BaseModel):
     ente: str
     tipo: str = "generale"
     punteggio: int | None = Field(default=None, ge=0)
-    massimo: int | None = Field(default=None, gt=0)
+    massimo: int | None = Field(default=None, ge=1)
     testo_originale: str | None = None
 
     @model_validator(mode="after")
@@ -25,6 +32,9 @@ class VisualRatings(BaseModel):
 
 
 class ExtractionQuality(BaseModel):
+    """Per-record data-quality audit trail: how `structured_extractor` answers
+    "how did you check data quality and what limits did you find" (see README)."""
+
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     needs_review: bool = False
     issues: list[str] = Field(default_factory=list)
@@ -51,19 +61,16 @@ class HotelRecord(BaseModel):
     id: str = ""
     nome: str = Field(validation_alias=AliasChoices("nome", "name"))
     localita: str = Field(default="Non specificata", validation_alias=AliasChoices("localita", "locality"))
-    regione: str = Field(default="Non specificata", validation_alias=AliasChoices("regione", "region"))
     stelle: str | None = Field(default=None, validation_alias=AliasChoices("stelle", "stars"))
     categoria_ufficiale: int | None = Field(default=None, ge=1, le=7)
     valutazioni: list[HotelRating] = Field(default_factory=list)
     qualificatori: list[str] = Field(default_factory=list)
     trattamento_principale: str | None = Field(default=None, validation_alias=AliasChoices("trattamento_principale", "treatment"))
-    distanza_mare_metri: int | None = None
     pet_friendly: bool = False
     ha_piscina: bool = False
     ha_spa: bool = False
     ha_biberoneria: bool = False
     caratteristiche_chiave: list[str] = Field(default_factory=list)
-    descrizione: str = Field(default="", validation_alias=AliasChoices("descrizione", "description"))
     source_pages: list[int] = Field(default_factory=list)
     source: HotelSource = Field(default_factory=HotelSource)
     quality: ExtractionQuality = Field(default_factory=ExtractionQuality)
@@ -77,9 +84,3 @@ class HotelRecord(BaseModel):
         if "services" in data and "caratteristiche_chiave" not in data: data["caratteristiche_chiave"] = data["services"]
         if "highlights" in data and "caratteristiche_chiave" not in data: data["caratteristiche_chiave"] = data["highlights"]
         return data
-
-    def searchable_text(self) -> str:
-        return "\n".join(f"{field}: {value}" for field, value in self.model_dump().items())
-
-    def metadata(self) -> dict[str, str]:
-        return {field: " | ".join(map(str, value)) if isinstance(value, list) else str(value or "") for field, value in self.model_dump().items() if field != "descrizione"}

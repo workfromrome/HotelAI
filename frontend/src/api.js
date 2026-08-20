@@ -23,3 +23,20 @@ export function fetchHotels() {
 export function fetchHealth() {
   return request('/health')
 }
+
+export async function ingestPdf(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`${BASE_URL}/ingest`, { method: 'POST', body: formData })
+  if (!response.ok) {
+    let detail = `Richiesta fallita (${response.status})`
+    try {
+      const data = await response.json()
+      if (data?.detail) detail = data.detail
+    } catch {
+      // risposta senza corpo JSON: mantiene il messaggio generico
+    }
+    throw new Error(detail)
+  }
+  return response.json()
+}

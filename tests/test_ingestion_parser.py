@@ -1,12 +1,6 @@
-from pathlib import Path
+from conftest import require_sample_pdf
 from ingestion.pdf_parser import clean_ocr, load_hotel_blocks, repair_split_words
 from ingestion.pymupdf_parser import load_pymupdf_hotel_blocks
-
-PDF = Path(r"C:\Users\olso4\Downloads\FDE_test\FDE_test\FileHotels.pdf")
-
-def test_ocr_cleanup() -> None:
-    assert clean_ocr('GATTAREL! PA!CE VOI DANIE"') == "GATTARELLA PALACE VOI DANIELI"
-
 
 def test_ocr_cleanup_normalizes_unicode_and_layout_whitespace() -> None:
     assert clean_ocr("Hotel\u00a0\u201cAlba\u201d  sul\n mare ;") == 'Hotel "Alba" sul mare;'
@@ -22,28 +16,19 @@ def test_split_word_is_repaired_only_with_local_evidence() -> None:
     assert confidence == 0.0
 
 def test_original_catalogue_has_19_blocks() -> None:
-    blocks = load_hotel_blocks(PDF)
+    blocks = load_hotel_blocks(require_sample_pdf())
     assert len(blocks) == 19
     assert blocks[0].pages == (2, 3)
-    assert blocks[0].lines
     assert blocks[0].words
     assert {"text", "x0", "x1", "top", "bottom", "page"}.issubset(blocks[0].words[0])
-    assert blocks[0].segmentation_confidence >= 0.66
-    assert blocks[0].segmentation_issues == ()
 
 
 def test_pymupdf_candidate_has_clean_header_names() -> None:
-    blocks = load_pymupdf_hotel_blocks(PDF)
+    blocks = load_pymupdf_hotel_blocks(require_sample_pdf())
     assert len(blocks) == 19
     assert blocks[0].title == "BRAVO ALIMINI"
     titles = [block.title for block in blocks]
     assert "CATEGORIA UFFICIALE" not in " ".join(titles).upper()
-    # blocks[1]/[2] (THALAS CLUB, DANIELA ESSENTIA) usano il glifo decorativo "LA": la
-    # sostituzione deterministica in pymupdf_parser li rende puliti, needs_review=False.
-    assert blocks[1].quality is not None
-    assert blocks[1].quality.needs_review is False
-    assert blocks[2].quality is not None
-    assert blocks[2].quality.needs_review is False
     for block in blocks:
         assert "CATEGORIA UFFICIALE" not in block.title.upper()
         assert "AILGUP" not in block.title.upper()
@@ -78,7 +63,7 @@ _EXPECTED_NAME_LOCALITY = [
 
 def test_all_19_records_have_clean_name_and_locality() -> None:
     """Nome e localita non devono mai risultare impastati, sui due layout di pagina del catalogo."""
-    blocks = load_pymupdf_hotel_blocks(PDF)
+    blocks = load_pymupdf_hotel_blocks(require_sample_pdf())
     assert len(blocks) == len(_EXPECTED_NAME_LOCALITY)
     for index, (block, (expected_name, expected_locality)) in enumerate(
         zip(blocks, _EXPECTED_NAME_LOCALITY, strict=True), 1
@@ -89,7 +74,7 @@ def test_all_19_records_have_clean_name_and_locality() -> None:
 
 def test_novita_badge_is_never_leaked_into_name_or_locality() -> None:
     """La scheda Acaya (pagina con badge NOVITA) non deve contenere il badge in nome/localita."""
-    blocks = load_pymupdf_hotel_blocks(PDF)
+    blocks = load_pymupdf_hotel_blocks(require_sample_pdf())
     acaya = next(block for block in blocks if block.locality == "ACAYA")
     assert acaya.title == "ACAYA GOLF RESORT & SPA"
     tokens = f"{acaya.title} {acaya.locality}".upper().split()

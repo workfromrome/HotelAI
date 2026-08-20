@@ -8,7 +8,6 @@ from pathlib import Path
 import pymupdf
 
 from .pdf_parser import HotelBlock
-from .quality_model import compute_field_confidence
 
 
 _EXCLUDED_HEADER_TEXT = {"PUGLIA", "AILGUP"}
@@ -18,8 +17,8 @@ _STOP_MARKERS = re.compile(r"CATEGORIA\s+UFFICIALE|VALUTAZIONE|INQUADRA\s+IL\s+Q
 # Il font decorativo dei titoli rende la coppia di lettere "LA" come un unico glifo,
 # che PyMuPDF estrae come span isolato con testo '"' o '!' (nessuna corrispondenza Unicode
 # reale). Osservato in modo identico su GATTAREL[LA], PA[LA]CE, DANIE[LA], CINTO[LA],
-# VIL[LA]GGIO, THA[LA]S: sempre "LA", mai altro. Sostituzione a livello di span, non nel
-# clean_ocr condiviso, perche' qui sappiamo che lo span appartiene al font del titolo.
+# VIL[LA]GGIO, THA[LA]S: sempre "LA", mai altro. Sostituzione a livello di span, perche'
+# qui sappiamo che lo span appartiene al font del titolo.
 _LIGATURE_GLYPHS = {'"', "!"}
 
 
@@ -130,8 +129,15 @@ def _header_name_and_locality(page: pymupdf.Page) -> tuple[str, str]:
     return name, locality
 
 
-def load_pymupdf_hotel_blocks(pdf_path: Path, correct_titles: bool = False) -> list[HotelBlock]:
-    """Extract hotel blocks using PyMuPDF's font-size-aware header parsing (canonical nome/localita source)."""
+def load_pymupdf_hotel_blocks(pdf_path: Path) -> list[HotelBlock]:
+    """Extract hotel blocks using PyMuPDF's font-size-aware header parsing (canonical nome/localita source).
+
+    Blocks start at "INQUADRA IL QR" markers (each hotel page has this QR-code caption),
+    not at pdf_parser.py's own `_candidate_start` heuristic — the two parsers can disagree
+    on block boundaries. `.words` still comes from pdf_parser.load_hotel_blocks, matched
+    to this function's blocks by list position (both parsers are expected to find the same
+    19 hotels in the same order; if that ever drifts, `.words` would map to the wrong block).
+    """
     if not pdf_path.is_file():
         raise FileNotFoundError(f"PDF non trovato: {pdf_path}")
     document = pymupdf.open(pdf_path)
@@ -146,25 +152,13 @@ def load_pymupdf_hotel_blocks(pdf_path: Path, correct_titles: bool = False) -> l
             end = starts[position + 1] if position + 1 < len(starts) else len(pages)
             title, locality = _header_name_and_locality(document[start])
             reference = pdfplumber_blocks[position] if position < len(pdfplumber_blocks) else None
-            header_raw_text = _page_text(document[start])
-            header_only_text = _join_header_text(_header_spans(document[start]))
-            quality = compute_field_confidence(title, locality, header_only_text)
             blocks.append(HotelBlock(
                 title=title,
                 pages=tuple(range(start + 1, end + 1)),
                 text="\n".join(pages[start:end]),
-                lines=reference.lines if reference is not None else (),
                 words=reference.words if reference is not None else (),
-                segmentation_confidence=reference.segmentation_confidence if reference is not None else 0.0,
-                segmentation_issues=reference.segmentation_issues if reference is not None else (),
-                quality=quality,
-                header_raw_text=header_raw_text,
-                page_num=start + 1,
                 locality=locality,
             ))
-        if correct_titles:
-            from .gemini_title_corrector import correct_reviewed_titles
-            return correct_reviewed_titles(blocks, enabled=True)
         return blocks
     finally:
         document.close()

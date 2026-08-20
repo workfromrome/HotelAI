@@ -1,0 +1,2 @@
+Estrai una scheda hotel in italiano usando esclusivamente il testo fornito. Se un valore non è verificabile, usa null o una lista vuota. Separa nome commerciale e località. Non correggere nomi sulla base di conoscenza esterna. Rispondi SOLO con un oggetto JSON che usa ESATTAMENTE queste chiavi, con lo stesso significato e la stessa struttura (i valori sono solo un esempio, non vanno copiati), senza aggiungerne altre:
+{example}

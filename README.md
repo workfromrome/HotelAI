@@ -5,26 +5,25 @@
 Il repository include ora una pipeline separata in ingestion, structured extraction, vector search e MCP:
 
 ```text
-PDF -> ingestion.pdf_parser -> HotelSchema -> CSV
-                         \-> ChromaDB -> HotelRetriever -> FastMCP
+PDF -> ingestion.pdf_parser -> HotelSchema -> CSV -> ChromaDB -> HotelRetriever -> FastMCP
 ```
+
+L'indicizzazione Chroma importa il CSV appena scritto (`build_index_from_csv`), non i record ancora in memoria: è il collegamento esplicito richiesto tra "Parte 1 - Estrazione" e "Parte 2 - Ricerca" di questo assignment. Dettagli e motivazione in [`user-doc/csv-driven-indexing.md`](user-doc/csv-driven-indexing.md).
 
 ### Verifica offline completa
 
 ```powershell
 $env:PYTHONPATH = "src"
-python -m ingestion.pdf_parser "C:\Users\olso4\Downloads\FDE_test\FDE_test\FileHotels.pdf"
-python -m ingestion.structured_extractor `
-  "C:\Users\olso4\Downloads\FDE_test\FDE_test\FileHotels.pdf" `
-  "data\processed\hotels_data.csv" --offline
+python -m ingestion.pdf_parser "data\raw\FileHotels.pdf"
+python -m ingestion.structured_extractor "data\raw\FileHotels.pdf" "data\processed\hotels_data.csv" --offline
 python -m pytest -q
 ```
 
 La verifica offline attuale produce 19 blocchi PDF e 19 record strutturati.
 
-### Gemini / Google AI Studio
+### Provider LLM e quote
 
-Impostare `GOOGLE_API_KEY` in `.env`. L’estrazione usa Gemini con schema Pydantic; gli embedding usano `gemini-embedding-001`, configurabile tramite `EMBEDDING_MODEL`. `text-embedding-004` è mantenuto solo come riferimento storico: l’endpoint attuale ha restituito 404 per quel modello. Il piano gratuito di Google AI Studio può essere usato entro i limiti di quota e disponibilità del modello.
+Impostare `GOOGLE_API_KEY` e/o `GROQ_API_KEY` in `.env`. La revisione dei record a bassa confidence e le risposte RAG usano Groq (`openai/gpt-oss-120b`, free tier osservato: 30 richieste/minuto, 1.000/giorno) come provider di default, con fallback automatico su Gemini (`gemini-flash-latest`, free tier osservato: 20 richieste/giorno) quando Groq non è configurato o esaurisce i retry; senza nessuna delle due chiavi l'estrazione resta comunque deterministica (fallback locale) e le risposte RAG restituiscono il messaggio di fallback fisso. Gli embedding usano invece solo Gemini (`gemini-embedding-001`, configurabile tramite `EMBEDDING_MODEL`; `text-embedding-004` è mantenuto solo come riferimento storico, l'endpoint attuale ha restituito 404 per quel modello) — senza `GOOGLE_API_KEY` l'indicizzazione usa un embedder offline deterministico, non semanticamente equivalente.
 
 ### MCP
 
@@ -47,13 +46,24 @@ Pipeline piccolo e verificabile per il catalogo alberghiero fornito. Estrae una 
 
 ## Architecture
 
-- `pdfplumber` extracts every PDF page into `data/raw/file_hotels.txt` for inspection.
-- Google AI Studio (`gemini-flash-latest`) produce schede strutturate validate con Pydantic quando la confidence locale è bassa.
-- `gemini-embedding-001` crea i vettori ChromaDB in `data/processed/chromadb`.
-- Each vector document includes the CSV metadata; results are re-ranked with transparent lexical metadata overlap. This gives natural-language similarity plus explicit matches for features such as `piscina`, `pet-friendly`, and `pensione completa`.
-- FastMCP exposes `search_hotels(query: str) -> str`, always requesting a maximum of five results.
+```text
+PDF
+ ├─ pdfplumber (pdf_parser.py)   -> segmentazione in schede + word bounding box di riferimento
+ └─ PyMuPDF (pymupdf_parser.py)  -> header font-size-aware -> nome/localita canonici
+                                     -> HotelRecord (structured_extractor.py)
+                                     -> revisione Groq (default) / Gemini (fallback) se confidence bassa
+                                     -> CSV/JSONL -> [CSV re-read] -> ChromaDB (embedding Gemini)
+                                     -> HotelRetriever -> FastMCP / RAGEngine (RAGEngine non esposto come tool MCP)
+```
 
-Il confine tra provider è volutamente piccolo: `gemini_extract` e `GoogleEmbeddingFunction` possono essere sostituiti con adapter Groq, modelli open-source locali o altri provider gratuiti/con quota senza modificare parsing, CSV, retrieval o MCP. I provider si selezionano tramite `LLM_PROVIDER` ed `EMBEDDING_PROVIDER`.
+- `pymupdf_parser.py` è la fonte canonica di `nome`/`localita` (estrazione per dimensione del font nell'header); `pdf_parser.py` (`pdfplumber`) fornisce la segmentazione in schede e le word bounding box usate dal fallback visuale sulle valutazioni.
+- I record con confidence deterministica bassa (`quality.confidence < settings.llm_fallback_confidence_threshold`) vengono rivisti da un LLM: Groq (`openai/gpt-oss-120b`) è il provider di default, con fallback automatico su Gemini (`gemini-flash-latest`) quando Groq non è configurato o fallisce; i record ad alta confidence non consumano chiamate API.
+- `gemini-embedding-001` crea i vettori ChromaDB in `data/processed/chromadb`.
+- Ogni documento vettoriale include i metadata strutturati del record (esclusi `source`/`quality`, che sono solo per audit); i risultati sono ordinati con un punteggio ibrido vettoriale + overlap lessicale sui metadata (`vector_weight`/`metadata_weight` in `.env`).
+- FastMCP espone `search_hotels(query: str) -> str`, restituendo sempre al massimo cinque risultati.
+- `RAGEngine` (`src/rag/rag_engine.py`) usa la stessa cascata Groq-poi-Gemini per sintetizzare una risposta in linguaggio naturale con citazioni di pagina, esposta via `POST /api/chat` nel backend FastAPI (non ancora come tool MCP).
+
+I provider si selezionano tramite `LLM_PROVIDER` ed `EMBEDDING_PROVIDER` in `.env`.
 
 ## Setup
 
@@ -68,19 +78,19 @@ Set a real `GOOGLE_API_KEY` in `.env`, then run:
 
 ```powershell
 $env:PYTHONPATH = "src"
-python scripts/run_pipeline.py "..\FileHotels.pdf"
-python -m fde_hotel_rag.server
+python scripts/run_pipeline.py "data\raw\FileHotels.pdf"
+python -m mcp_server.server
 ```
 
-Per la verifica offline senza API key, eseguire `python scripts/run_pipeline.py "C:\Users\olso4\Downloads\FDE_test\FDE_test\FileHotels.pdf" --offline`. La modalità offline produce testo grezzo e CSV e salva lo stato progressivo; non costruisce Chroma. L'indice e il retrieval richiedono un provider embedding configurato.
+Per la verifica offline senza API key, eseguire `python scripts/run_pipeline.py "data\raw\FileHotels.pdf" --offline`. La modalità offline produce solo CSV/JSONL (nessuna chiamata Groq/Gemini); non costruisce Chroma. L'indice e il retrieval richiedono un provider embedding configurato.
 
 Il raggruppamento individua le intestazioni delle schede nel testo PDF e associa la pagina seguente. Se un catalogo non conserva le intestazioni, usa il fallback strutturale “introduzione + coppie di pagine”. I nomi non sono mantenuti in liste applicative: sono estratti dall'intestazione e normalizzati solo per correggere artefatti OCR evidenti.
 
-`GOOGLE_MODEL`, `GROQ_MODEL`, `EMBEDDING_MODEL`, `REQUEST_DELAY_SECONDS`, `GEMINI_REQUESTS_PER_MINUTE`, `GROQ_REQUESTS_PER_MINUTE` e `MAX_RETRIES` sono configurabili in `.env`. Gli errori Google 404, 429 e 5xx sono espliciti; 429 e 5xx vengono ritentati con backoff. `data/processed/extraction_state.json` permette il resume senza ripetere record già validati.
+`GOOGLE_MODEL`, `GROQ_MODEL`, `EMBEDDING_MODEL`, `REQUEST_DELAY_SECONDS`, `GEMINI_REQUESTS_PER_MINUTE`, `GROQ_REQUESTS_PER_MINUTE` e `MAX_RETRIES` sono configurabili in `.env`. Gli errori Google 404, 429 e 5xx sono espliciti; 429 e 5xx vengono ritentati con backoff.
 
 ## Dati estratti e qualità
 
-Il JSONL è lo storage canonico auditabile; il CSV è una vista tabellare. I record possono contenere categoria numerica, valutazioni (`ente`, `tipo`, `punteggio/massimo`), qualificatori, testo originale, pagine sorgente e confidence per campo. I punteggi non leggibili restano `null`. Il parser usa prima testo/layout `pdfplumber`; Gemini testuale e Vision sono fallback per i casi ambigui.
+Il JSONL è lo storage canonico auditabile; il CSV è l'interfaccia tra estrazione e indicizzazione, oltre che la vista tabellare consegnata. I record possono contenere categoria numerica, valutazioni (`ente`, `tipo`, `punteggio/massimo`), qualificatori, testo originale, pagine sorgente e confidence per campo. I punteggi non leggibili restano `null`. L'estrazione deterministica (PyMuPDF per nome/localita, euristiche testuali/regex per gli altri campi) è il primo passo; Groq testuale (fallback Gemini) rivede i record a bassa confidence, e Gemini Vision legge le valutazioni visuali quando il testo non le riporta come punteggi numerici.
 
 ## MCP client configuration
 
@@ -89,8 +99,8 @@ Il JSONL è lo storage canonico auditabile; il CSV è una vista tabellare. I rec
   "mcpServers": {
     "keplero-hotels": {
       "command": "python",
-      "args": ["-m", "fde_hotel_rag.server"],
-      "cwd": "C:\\Users\\olso4\\Downloads\\FDE_test\\FDE_test\\fde_hotel_rag",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "<path assoluto alla cartella del repository>",
       "env": {"PYTHONPATH": "src"}
     }
   }
@@ -103,7 +113,9 @@ Backend FastAPI (`src/api/main.py`) e frontend React/Vite (`frontend/`), tema sc
 
 ```powershell
 $env:PYTHONPATH = "src"
-python -m uvicorn api.main:app --reload --port 8000
+python -m uvicorn api.main:app --reload --reload-dir src --port 8000
+# --reload-dir src limita il watcher al codice sorgente: senza, il salvataggio
+# dei file generati da /api/ingest sotto data/ farebbe riavviare il server a metà richiesta.
 ```
 
 ```powershell
@@ -121,23 +133,4 @@ $env:PYTHONPATH = "src"
 pytest -q
 ```
 
-Il PDF fornito deve produrre 19 righe CSV. Verificare un campione contro `data/raw/file_hotels.txt`; `source_pages` rende ogni campo tracciabile. Limiti residui: l'ordine del testo PDF e gli artefatti OCR possono richiedere una revisione visiva; il fallback locale è conservativo e non sostituisce la validazione semantica del modello.
-
-## Architettura corrente (aggiornamento temporaneo)
-
-Accanto al parser canonico `pdfplumber`, il progetto include un candidato PyMuPDF per i PDF multi-colonna:
-
-```text
-PDF
- ├─ pdfplumber                 -> segmentazione canonica
- └─ PyMuPDF get_text("dict")   -> header BBox/font-size
-                                  -> ExtractionQuality
-                                  -> correzione titolo mirata (Groq/Gemini)
-                                  -> HotelRecord
-                                  -> ChromaDB / Retriever
-                                  -> RAGEngine -> FastMCP (RAGEngine non ancora esposto come tool MCP)
-```
-
-PyMuPDF usa filtri spaziali e tipografici per isolare il nome nell’header. I record con `quality.needs_review=True` possono essere inviati alla correzione titolo: Groq (`openai/gpt-oss-120b`, free tier 30 RPM / 1.000 richieste al giorno) è il provider di default, con fallback automatico su Gemini Flash quando Groq non è configurato o esaurisce i retry (limite giornaliero Gemini free tier osservato: 20 richieste/modello); i record ad alta confidence non consumano chiamate API. Ogni provider ha un proprio timer di backoff calcolato sul proprio limite RPM configurato, così i due limiti non si mescolano mai. `RAGEngine` (`src/rag/rag_engine.py`) recupera i documenti più rilevanti e genera una risposta italiana con citazioni di pagina usando la stessa cascata Groq-poi-Gemini (senza retry/backoff, essendo sul percorso di query interattiva); quando il contesto non è sufficiente, entrambi i provider falliscono o la query è vuota, restituisce sempre `Informazione non sufficiente nei documenti forniti` senza sollevare eccezioni.
-
-Questa sezione è temporanea e verrà consolidata insieme alla documentazione della futura webapp.
+Il PDF fornito deve produrre 19 righe CSV; `source_pages` rende ogni campo tracciabile fino alle pagine originali. Limiti residui: l'ordine del testo PDF e gli artefatti OCR possono richiedere una revisione visiva; il fallback locale è conservativo e non sostituisce la validazione semantica del modello.

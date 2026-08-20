@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import ChatArea from './components/ChatArea'
 import InputBar from './components/InputBar'
-import { fetchHealth, fetchHotels, sendChatMessage } from './api'
+import { fetchHealth, fetchHotels, ingestPdf, sendChatMessage } from './api'
+import { TEST_QUERY_TEXT, TEST_RESPONSE_TEXT } from './utils'
 import './styles/app.css'
 
 let nextId = 1
@@ -31,6 +32,25 @@ export default function App() {
     setMessages((prev) => [...prev, { id: makeId(), role: 'user', text: query }])
     setIsLoading(true)
     setSidebarOpen(false)
+
+    if (query === TEST_QUERY_TEXT) {
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            role: 'assistant',
+            text: TEST_RESPONSE_TEXT,
+            sourcePages: [4, 5],
+            retrievedHotels: ['Hotel Esempio'],
+            isFallback: false,
+          },
+        ])
+        setIsLoading(false)
+      }, 500)
+      return
+    }
+
     try {
       const response = await sendChatMessage(query)
       setMessages((prev) => [
@@ -59,12 +79,29 @@ export default function App() {
     }
   }
 
+  const handleNewChat = () => {
+    setMessages([])
+    setSidebarOpen(false)
+  }
+
+  const handleUploadPdf = async (file) => {
+    const result = await ingestPdf(file)
+    setHotels(result.hotels ?? [])
+    fetchHealth()
+      .then((data) => setStatus(data.status))
+      .catch(() => setStatus('offline'))
+    return result
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
         status={status}
         hotels={hotels}
         onQuickQuery={handleSend}
+        onUploadPdf={handleUploadPdf}
+        onNewChat={handleNewChat}
+        newChatDisabled={isLoading}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

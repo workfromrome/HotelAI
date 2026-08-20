@@ -1,25 +1,45 @@
+"""Canonical HotelRecord extraction: deterministic first pass, conditional LLM review.
+
+Pipeline per hotel block, driven by `extract_block`:
+  1. `_offline` builds a record from regex/text heuristics alone (no network call) and
+     scores each field's confidence based on real signal (e.g. was a locality actually
+     separated out, was a category regex match found).
+  2. If `_needs_llm_fallback` says the deterministic confidence is too low (and the caller
+     allows it via `use_gemini=True`), `_review_with_llm` re-extracts the whole record with
+     Groq first, Gemini as fallback — this is *not* selective per field, the LLM redoes the
+     entire record from raw text.
+  3. `extract_catalogue` runs this per block and writes both CSV and JSONL; `read_csv` is
+     the exact inverse of `write_csv` and is what `search/vector_store.py` calls to import
+     the catalogue for indexing (see user-doc/csv-driven-indexing.md for why it re-reads
+     the file from disk instead of reusing the in-memory `records` list).
+"""
 from __future__ import annotations
 
 import json
+import logging
 import re
 import csv
 from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from .pdf_parser import HotelBlock
 from .pymupdf_parser import load_pymupdf_hotel_blocks
-from fde_hotel_rag.schemas import HotelRecord
-from fde_hotel_rag.schemas import HotelRating, VisualRatings
-from fde_hotel_rag.config import settings
+from hotelai.schemas import HotelRecord
+from hotelai.schemas import ExtractionQuality, HotelRating, HotelSource, VisualRatings
+from hotelai.config import settings
+from hotelai.prompts import load_prompt
+
+logger = logging.getLogger(__name__)
 
 HotelSchema = HotelRecord
 
 
 def _needs_llm_fallback(record: HotelSchema) -> bool:
+    """record.quality.confidence is the *minimum* of all per-field confidences from
+    `_offline` — one weak field is enough to trigger a full LLM review of the record."""
     return record.quality.confidence < settings.llm_fallback_confidence_threshold
-
-
-def _needs_visual_fallback(record: HotelSchema) -> bool:
-    return bool(record.valutazioni) and all(r.punteggio is None for r in record.valutazioni)
 
 
 def _visual_ratings(pdf_path: Path, block: HotelBlock) -> list[HotelRating]:
@@ -42,8 +62,7 @@ def _visual_ratings(pdf_path: Path, block: HotelBlock) -> list[HotelRating]:
     response = genai.Client(api_key=settings.google_api_key).models.generate_content(
         model=settings.google_model,
         contents=[
-            "Leggi solo le valutazioni visuali nell'immagine. Restituisci JSON. "
-            "Se il punteggio non è leggibile, usa null. Non inventare valori.",
+            load_prompt("visual_ratings"),
             image,
         ],
         config={"response_mime_type": "application/json", "response_schema": VisualRatings},
@@ -74,18 +93,24 @@ def _header_fields(block: HotelBlock) -> tuple[int | None, list[dict], list[str]
 
 
 def _offline(block: HotelBlock, index: int) -> HotelSchema:
+    """Zero-API extraction: `nome`/`localita` come straight from PyMuPDF's font-size
+    parsing (already reliable, see pymupdf_parser.py), everything else from regex/keyword
+    matching over the raw block text. `field_confidence` scores what was actually
+    verified (e.g. `nome_affidabile` is false only for a genuinely short/unresolved title,
+    not just because this pass is deterministic) — that's what feeds `_needs_llm_fallback`."""
     text = block.text.lower()
     title = block.title
     locality = block.locality.title() if block.locality else "Non specificata"
     treatment = next((term for term in ("tutto incluso", "pensione completa", "mezza pensione", "pernottamento e prima colazione") if term in text), None)
     category, evaluations, qualifiers = _header_fields(block)
     issues = []
-    if len(title.split()) < 2:
+    nome_affidabile = len(title.split()) >= 2 and title != "Hotel non identificato"
+    if not nome_affidabile:
         issues.append("nome_breve")
     if not block.locality:
         issues.append("localita_non_separata")
     field_confidence = {
-        "nome": 0.45,
+        "nome": 0.9 if nome_affidabile else 0.3,
         "localita": 0.9 if block.locality else 0.2,
         "categoria_ufficiale": 0.95 if category is not None else 0.2,
         "valutazioni": 0.7 if evaluations else 0.2,
@@ -114,50 +139,185 @@ def _offline(block: HotelBlock, index: int) -> HotelSchema:
     )
 
 
-def extract_block(block: HotelBlock, index: int, use_gemini: bool = True, pdf_path: Path | None = None) -> HotelSchema:
-    deterministic = _offline(block, index)
-    if not use_gemini or not settings.google_api_key or not _needs_llm_fallback(deterministic):
-        return deterministic
+class HotelReview(BaseModel):
+    """Campi che l'LLM di revisione deve determinare dal testo della scheda.
+
+    Sottoinsieme di HotelSchema: esclude id/source_pages/source/quality perché
+    extract_block li ricalcola sempre dal block PDF originale. quality.field_confidence
+    (dict a chiavi libere) è escluso anche perché non rappresentabile nello schema
+    strutturato di Gemini (rifiuta additionalProperties).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    nome: str
+    localita: str | None = "Non specificata"
+    stelle: str | None = None
+    categoria_ufficiale: int | None = Field(default=None, ge=1, le=7)
+    valutazioni: list[HotelRating] = Field(default_factory=list)
+    qualificatori: list[str] = Field(default_factory=list)
+    trattamento_principale: str | None = None
+    pet_friendly: bool = False
+    ha_piscina: bool = False
+    ha_spa: bool = False
+    ha_biberoneria: bool = False
+    caratteristiche_chiave: list[str] = Field(default_factory=list)
+
+
+_REVIEW_EXAMPLE = HotelReview(
+    nome="NOME COMMERCIALE HOTEL",
+    localita="Città",
+    stelle="4",
+    categoria_ufficiale=4,
+    valutazioni=[HotelRating(ente="Es. TripAdvisor", tipo="generale", punteggio=4, massimo=5, testo_originale="testo originale se presente nella scheda")],
+    qualificatori=["Palace"],
+    trattamento_principale="pensione completa",
+    ha_piscina=True,
+    caratteristiche_chiave=["spiaggia", "family"],
+).model_dump_json(indent=2)
+
+_REVIEW_PROMPT = load_prompt("structured_review").format(example=_REVIEW_EXAMPLE)
+
+
+def _get_groq_client() -> Any | None:
+    if not settings.groq_api_key:
+        return None
+    from groq import Groq
+
+    return Groq(api_key=settings.groq_api_key)
+
+
+def _get_gemini_client() -> Any | None:
+    if not settings.google_api_key:
+        return None
     from google import genai
-    client = genai.Client(api_key=settings.google_api_key)
-    prompt = (
-        "Estrai una scheda hotel in italiano usando esclusivamente il testo fornito. "
-        "Se un valore non è verificabile, usa null o una lista vuota. "
-        "Separa nome commerciale e località. Non correggere nomi sulla base di conoscenza esterna."
+
+    return genai.Client(api_key=settings.google_api_key)
+
+
+def _groq_review(client: Any, block_text: str) -> HotelReview:
+    response = client.chat.completions.create(
+        model=settings.groq_model,
+        messages=[
+            {"role": "system", "content": _REVIEW_PROMPT},
+            {"role": "user", "content": f"TESTO SCHEDA:\n{block_text}"},
+        ],
+        response_format={"type": "json_object"},
     )
-    try:
-        response = client.models.generate_content(
-            model=settings.google_model,
-            contents=f"{prompt}\n\nTESTO SCHEDA:\n{block.text}",
-            config={"response_mime_type": "application/json", "response_schema": HotelSchema},
-        )
-        extracted = HotelSchema.model_validate_json(response.text)
-    except Exception as exc:
-        raise RuntimeError("Fallback Gemini fallito durante l'estrazione strutturata") from exc
-    if _needs_visual_fallback(extracted):
+    return HotelReview.model_validate_json(response.choices[0].message.content)
+
+
+def _gemini_review(client: Any, block_text: str) -> HotelReview:
+    response = client.models.generate_content(
+        model=settings.google_model,
+        contents=f"{_REVIEW_PROMPT}\n\nTESTO SCHEDA:\n{block_text}",
+        config={"response_mime_type": "application/json", "response_schema": HotelReview},
+    )
+    return HotelReview.model_validate_json(response.text)
+
+
+def _review_with_llm(
+    block_text: str, groq_client: Any | None = None, gemini_client: Any | None = None
+) -> tuple[HotelReview, str] | None:
+    """Cascade Groq -> Gemini per la revisione dei record a bassa confidenza. Non solleva mai eccezioni."""
+    client = groq_client if groq_client is not None else _get_groq_client()
+    if client is not None:
+        try:
+            return _groq_review(client, block_text), "estratto_con_groq_testuale"
+        except Exception as exc:
+            logger.warning("Review Groq fallita, fallback su Gemini: %s", exc)
+
+    client = gemini_client if gemini_client is not None else _get_gemini_client()
+    if client is not None:
+        try:
+            return _gemini_review(client, block_text), "estratto_con_gemini_testuale"
+        except Exception as exc:
+            logger.warning("Review Gemini fallita: %s", exc)
+
+    return None
+
+
+def extract_block(
+    block: HotelBlock,
+    index: int,
+    use_gemini: bool = True,
+    pdf_path: Path | None = None,
+    groq_client: Any | None = None,
+    gemini_client: Any | None = None,
+) -> HotelSchema:
+    """Deterministic extraction, promoted to an LLM review only when confidence is low.
+    Never raises: an unreachable/failed LLM cascade falls back to the deterministic
+    record, tagged with `review_llm_non_disponibile` (see `needs_llm_review_warning`)."""
+    deterministic = _offline(block, index)
+    if not use_gemini or not _needs_llm_fallback(deterministic):
+        return deterministic
+
+    reviewed = _review_with_llm(block.text, groq_client, gemini_client)
+    if reviewed is None:
+        return deterministic.model_copy(update={
+            "quality": ExtractionQuality(
+                **{
+                    **deterministic.quality.model_dump(),
+                    "issues": [*deterministic.quality.issues, "review_llm_non_disponibile"],
+                }
+            ),
+        })
+    review, provider_issue = reviewed
+
+    # The LLM found rating agencies (e.g. "BRAVO") but no numeric score in the text — that
+    # usually means the score is only shown as a visual badge/graphic in the PDF, so fall
+    # back to a targeted Gemini Vision crop of just the header (see _visual_ratings above).
+    valutazioni = review.valutazioni
+    if bool(valutazioni) and all(r.punteggio is None for r in valutazioni):
         try:
             visual = _visual_ratings(pdf_path, block) if pdf_path is not None else []
         except Exception:
             visual = []
         if visual:
-            extracted = extracted.model_copy(update={"valutazioni": visual})
-    return extracted.model_copy(update={
-        "id": f"hotel-{index:03d}",
-        "source_pages": list(block.pages),
-        "source": {"pages": list(block.pages), "raw_text": block.text},
-        "quality": {
-            **extracted.quality.model_dump(),
-            "issues": [*extracted.quality.issues, "estratto_con_gemini_testuale"],
-        },
-    })
+            valutazioni = visual
+
+    return HotelSchema(
+        id=f"hotel-{index:03d}",
+        nome=review.nome,
+        localita=review.localita or "Non specificata",
+        stelle=review.stelle,
+        categoria_ufficiale=review.categoria_ufficiale,
+        valutazioni=valutazioni,
+        qualificatori=review.qualificatori,
+        trattamento_principale=review.trattamento_principale,
+        pet_friendly=review.pet_friendly,
+        ha_piscina=review.ha_piscina,
+        ha_spa=review.ha_spa,
+        ha_biberoneria=review.ha_biberoneria,
+        caratteristiche_chiave=review.caratteristiche_chiave,
+        source_pages=list(block.pages),
+        source=HotelSource(pages=list(block.pages), raw_text=block.text),
+        quality=ExtractionQuality(confidence=1.0, needs_review=False, issues=[provider_issue]),
+    )
 
 
-def extract_catalogue(pdf_path: Path, output_path: Path, use_gemini: bool = True) -> list[HotelSchema]:
-    records = [extract_block(block, index, use_gemini, pdf_path) for index, block in enumerate(load_pymupdf_hotel_blocks(pdf_path), 1)]
+def extract_catalogue(
+    pdf_path: Path,
+    output_path: Path,
+    use_gemini: bool = True,
+    groq_client: Any | None = None,
+    gemini_client: Any | None = None,
+) -> list[HotelSchema]:
+    """Entry point used by scripts/run_pipeline.py and the /api/ingest endpoint:
+    PDF -> blocks (pymupdf_parser) -> per-block extract_block -> CSV + JSONL on disk."""
+    records = [
+        extract_block(block, index, use_gemini, pdf_path, groq_client, gemini_client)
+        for index, block in enumerate(load_pymupdf_hotel_blocks(pdf_path), 1)
+    ]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     write_csv(records, output_path)
     write_jsonl(records, output_path.with_suffix(".jsonl"))
     return records
+
+
+def needs_llm_review_warning(records: list[HotelSchema]) -> bool:
+    """True se almeno un record necessitava di revisione LLM ma Groq e Gemini erano entrambi non disponibili."""
+    return any("review_llm_non_disponibile" in record.quality.issues for record in records)
 
 
 def write_jsonl(records: list[HotelSchema], output_path: Path) -> None:
@@ -179,9 +339,36 @@ def write_csv(records: list[HotelSchema], output_path: Path) -> None:
             writer.writerow(row)
 
 
+_CSV_JSON_LIST_FIELDS = ("valutazioni", "qualificatori", "caratteristiche_chiave", "source_pages")
+_CSV_JSON_DICT_FIELDS = ("source", "quality")
+_CSV_INT_FIELDS = ("categoria_ufficiale",)
+_CSV_BOOL_FIELDS = ("pet_friendly", "ha_piscina", "ha_spa", "ha_biberoneria")
+
+
+def read_csv(input_path: Path) -> list[HotelSchema]:
+    """Inverso di write_csv: è il punto in cui l'indicizzazione importa davvero il CSV esportato."""
+    with input_path.open(encoding="utf-8") as file:
+        rows = list(csv.DictReader(file))
+    records = []
+    for row in rows:
+        data: dict = dict(row)
+        for field in _CSV_JSON_LIST_FIELDS:
+            data[field] = json.loads(data[field]) if data.get(field) else []
+        for field in _CSV_JSON_DICT_FIELDS:
+            data[field] = json.loads(data[field]) if data.get(field) else {}
+        for field in _CSV_INT_FIELDS:
+            data[field] = int(data[field]) if data.get(field) else None
+        for field in _CSV_BOOL_FIELDS:
+            data[field] = data.get(field) == "True"
+        records.append(HotelSchema.model_validate(data))
+    return records
+
+
 if __name__ == "__main__":
     import argparse
     import sys
+    from hotelai.logging_setup import configure_logging
+    configure_logging()
     if hasattr(sys.stdout, "reconfigure"): sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(); parser.add_argument("pdf", type=Path); parser.add_argument("output", type=Path); parser.add_argument("--offline", action="store_true")
     args = parser.parse_args()

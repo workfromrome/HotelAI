@@ -1,4 +1,4 @@
-# Flusso ad alto livello — fde_hotel_rag
+# Flusso ad alto livello — HotelAI
 
 Questo documento descrive, ad alto livello, come l'app trasforma i PDF degli hotel in un catalogo interrogabile in linguaggio naturale, e come una domanda dell'utente diventa una risposta.
 
@@ -6,25 +6,24 @@ Questo documento descrive, ad alto livello, come l'app trasforma i PDF degli hot
 
 | Componente | Percorso | Ruolo |
 |---|---|---|
-| Ingestion | `src/ingestion/` | Estrae testo dai PDF, corregge i titoli, produce record strutturati |
+| Ingestion | `src/ingestion/` | Estrae testo dai PDF, rivede i record a bassa confidence (Groq/Gemini), produce record strutturati |
 | Search | `src/search/` | Genera embedding e indicizza/recupera gli hotel su ChromaDB |
 | RAG Engine | `src/rag/rag_engine.py` | Combina retrieval + LLM per rispondere alle domande |
 | API | `src/api/main.py` | Espone il backend FastAPI al frontend |
 | Frontend | `frontend/` | SPA React/Vite in stile chat |
 | MCP Server | `src/mcp_server/server.py` | Espone la ricerca hotel come tool MCP (percorso alternativo, senza sintesi LLM) |
-| Config | `src/fde_hotel_rag/config.py` | Chiavi API, modelli, pesi di ranking, percorsi |
+| Config | `src/hotelai/config.py` | Chiavi API, modelli, pesi di ranking, percorsi |
 
 ## Flowchart
 
 ```mermaid
 flowchart TD
     subgraph ING["1. Ingestion (offline, script)"]
-        PDF["PDF hotel"] --> PARSE["ingestion/pdf_parser.py\nsegmentazione blocchi + OCR cleanup"]
-        PARSE --> EXTRACT["ingestion/structured_extractor.py\nestrazione campi (regex)"]
-        EXTRACT -->|titolo incerto| TITLE["gemini_title_corrector.py\nGroq -> Gemini fallback\n(con cache)"]
-        TITLE --> RECORD
+        PDF["PDF hotel"] --> PARSE["ingestion/pymupdf_parser.py\nsegmentazione blocchi + nome/localita\n(font-size aware)"]
+        PARSE --> EXTRACT["ingestion/structured_extractor.py\nestrazione campi (regex)\n+ revisione Groq/Gemini se confidence bassa"]
         EXTRACT --> RECORD["HotelRecord (Pydantic)\nCSV / JSONL"]
-        RECORD --> INDEX["search/vector_store.py\nbuild_index()\nembedding + upsert ChromaDB"]
+        RECORD --> CSVFILE[("hotels_data.csv")]
+        CSVFILE -->|"read_csv() (re-import)"| INDEX["search/vector_store.py\nbuild_index_from_csv()\nembedding + upsert ChromaDB"]
     end
 
     subgraph QUERY["2. Query (runtime, interattivo)"]
@@ -52,8 +51,9 @@ flowchart TD
 ## Note sul flusso
 
 - **Ingestion è offline**: si esegue una volta (o quando arrivano nuovi PDF) tramite `scripts/run_pipeline.py`, non ad ogni richiesta utente.
+- **L'indicizzazione importa davvero il CSV**: `build_index_from_csv` rilegge `hotels_data.csv` con `read_csv` invece di riusare i record ancora in memoria dall'estrazione — vedi [`csv-driven-indexing.md`](csv-driven-indexing.md) per il perché.
 - **Un chunk per hotel**: a differenza di molte pipeline RAG, non c'è suddivisione in sotto-chunk — l'intero blocco di testo di un hotel diventa un singolo documento indicizzato, con metadati associati (categoria, rating, ecc.) usati anche per il rerank lessicale.
-- **Fallback LLM a due livelli**: sia in fase di correzione titoli sia in fase di risposta, Groq è il provider primario e Gemini il fallback in caso di errore/indisponibilità. Solo la correzione titoli usa una cache delle risposte; le risposte del RAG Engine non sono cachate.
+- **Fallback LLM a due livelli**: sia in fase di revisione dei record a bassa confidence sia in fase di risposta, Groq è il provider primario e Gemini il fallback in caso di errore/indisponibilità. Nessuno dei due livelli è cachato oggi.
 - **"Conversazionale" è il tono del prompt, non memoria multi-turno**: ogni domanda viene elaborata come una richiesta singola — non viene passata la cronologia della conversazione al motore RAG.
 - **Due modi di interrogare i dati**: il frontend web passa sempre da `RAGEngine` (risposta sintetizzata in linguaggio naturale); il server MCP espone invece il retrieval grezzo (Markdown con i risultati), senza generazione LLM.
 - **Frontend e backend in dev**: Vite (porta 5173) fa da proxy verso FastAPI (porta 8000) per le chiamate `/api/*`; il backend ha comunque CORS abilitato per 5173 come rete di sicurezza aggiuntiva.

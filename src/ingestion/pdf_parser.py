@@ -1,3 +1,12 @@
+"""pdfplumber-based PDF reading: text/OCR cleanup and word bounding boxes.
+
+`load_hotel_blocks` is no longer the canonical way to get `nome`/`localita` — that job
+now belongs to `pymupdf_parser.load_pymupdf_hotel_blocks`, which is font-size-aware and
+calls back into this module only for the `.words` bounding boxes (used later by
+`structured_extractor._visual_ratings` to crop the header image for Gemini Vision).
+This module's own block segmentation (`_candidate_start`) is kept as the structural
+fallback described in the README when a catalogue doesn't have PyMuPDF-friendly headers.
+"""
 from __future__ import annotations
 
 import re
@@ -6,32 +15,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pdfplumber
-from .quality_model import CrossExtractorQuality
 
 
 @dataclass(frozen=True)
 class HotelBlock:
+    """One hotel's segment of the PDF. `words` and `locality` are populated differently
+    depending on which parser built the block — see pymupdf_parser.py for the canonical path."""
+
     title: str
     pages: tuple[int, ...]
     text: str
-    lines: tuple[str, ...] = ()
     words: tuple[dict[str, float | int | str], ...] = ()
-    segmentation_confidence: float = 0.0
-    segmentation_issues: tuple[str, ...] = ()
-    quality: CrossExtractorQuality | None = None
-    header_raw_text: str = ""
-    page_num: int = 0
     locality: str = ""
-
-
-_OCR_REPLACEMENTS = {
-    "GATTAREL!": "GATTARELLA",
-    "PA!CE": "PALACE",
-    'DANIE"': "DANIELI",
-    'CINTO"': "CINTOLA",
-    "VIL!GGIO": "VILLAGGIO",
-    "THA\"S": "THB'S",
-}
 
 
 def clean_ocr(text: str) -> str:
@@ -45,8 +40,6 @@ def clean_ocr(text: str) -> str:
         "\u2014": "-",
         "\u00a0": " ",
     }))
-    for source, target in _OCR_REPLACEMENTS.items():
-        cleaned = cleaned.replace(source, target)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return re.sub(r"\s+([,.;:!?])", r"\1", cleaned)
 
@@ -76,20 +69,14 @@ def _title_from_page(text: str) -> str:
     return header or "Hotel non identificato"
 
 
-def _candidate_start(text: str) -> tuple[bool, float, tuple[str, ...]]:
+def _candidate_start(text: str) -> bool:
     """Identifica l'inizio di una scheda senza assumere una durata fissa."""
     upper = text.upper()
     has_qr_anchor = "INQUADRA IL QR" in upper
     has_catalogue_code = bool(re.search(r"\b[A-ZÀ-ÖØ-Ý]{3,}\s+\d{1,3}\b", text))
     has_category = "CATEGORIA" in upper
     has_title = _title_from_page(text) != "Hotel non identificato"
-    signals = sum((has_qr_anchor, has_catalogue_code, has_category, has_title))
-    issues: list[str] = []
-    if not has_qr_anchor:
-        issues.append("ancora_qr_assente")
-    if not has_title:
-        issues.append("titolo_non_identificato")
-    return has_title and (has_qr_anchor or (has_catalogue_code and has_category)), signals / 4, tuple(issues)
+    return has_title and (has_qr_anchor or (has_catalogue_code and has_category))
 
 
 def load_hotel_blocks(pdf_path: Path) -> list[HotelBlock]:
@@ -97,15 +84,12 @@ def load_hotel_blocks(pdf_path: Path) -> list[HotelBlock]:
         raise FileNotFoundError(f"PDF non trovato: {pdf_path}")
     with pdfplumber.open(pdf_path) as pdf:
         pages = []
-        page_lines: list[tuple[str, ...]] = []
         page_words: list[tuple[dict[str, float | int | str], ...]] = []
         for page in pdf.pages:
             raw_text = page.extract_text() or ""
-            lines = tuple(clean_ocr(line) for line in raw_text.splitlines() if line.strip())
             normalized = clean_ocr(" ".join(raw_text.split()))
             repaired, _ = repair_split_words(normalized)
             pages.append(repaired)
-            page_lines.append(lines)
             words = []
             for word in page.extract_words() or []:
                 words.append({
@@ -117,18 +101,15 @@ def load_hotel_blocks(pdf_path: Path) -> list[HotelBlock]:
                     "page": len(pages),
                 })
             page_words.append(tuple(words))
-    candidates = [_candidate_start(page) for page in pages]
-    starts = [index for index, (is_start, _, _) in enumerate(candidates) if is_start]
+    starts = [index for index, page in enumerate(pages) if _candidate_start(page)]
     if not starts:
         raise ValueError("Nessuna scheda hotel identificabile nel PDF")
     blocks: list[HotelBlock] = []
     for position, start in enumerate(starts):
         end = starts[position + 1] if position + 1 < len(starts) else len(pages)
         page_numbers = tuple(range(start + 1, end + 1))
-        lines = tuple(line for page in page_lines[start:end] for line in page)
         words = tuple(word for page in page_words[start:end] for word in page)
-        _, confidence, issues = candidates[start]
-        blocks.append(HotelBlock(_title_from_page(pages[start]), page_numbers, "\n".join(pages[start:end]), lines, words, confidence, issues))
+        blocks.append(HotelBlock(_title_from_page(pages[start]), page_numbers, "\n".join(pages[start:end]), words))
     return blocks
 
 
@@ -145,6 +126,8 @@ def print_report(pdf_path: Path) -> list[HotelBlock]:
 
 if __name__ == "__main__":
     import argparse
+    from hotelai.logging_setup import configure_logging
+    configure_logging()
     parser = argparse.ArgumentParser()
     parser.add_argument("pdf", type=Path)
     print_report(parser.parse_args().pdf)

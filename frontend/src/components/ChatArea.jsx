@@ -1,7 +1,38 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { formatPageRanges, stripPageCitations } from '../utils'
+
+const TYPEWRITER_CHARS_PER_TICK = 3
+const TYPEWRITER_INTERVAL_MS = 10
+
+/** Reveals `text` a few characters at a time, chatgpt-style, instead of all at once. */
+function useTypewriter(text, onTick) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (!text) {
+      setCount(0)
+      return undefined
+    }
+    let current = 0
+    setCount(0)
+    const id = setInterval(() => {
+      current = Math.min(current + TYPEWRITER_CHARS_PER_TICK, text.length)
+      setCount(current)
+      if (current >= text.length) clearInterval(id)
+    }, TYPEWRITER_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [text])
+
+  useEffect(() => {
+    onTick?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count])
+
+  const isDone = !text || count >= text.length
+  return [text ? text.slice(0, count) : '', isDone]
+}
 
 const SUGGESTIONS = [
   'Cerco una struttura pet-friendly vicino al mare.',
@@ -38,6 +69,7 @@ function PageBadges({ pages }) {
   if (ranges.length === 0) return null
   return (
     <div className="page-badges">
+      <span className="page-badges-label">Fonti:</span>
       {ranges.map((range) => (
         <span key={range} className="page-badge">
           Pag. {range}
@@ -47,8 +79,10 @@ function PageBadges({ pages }) {
   )
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, onReveal }) {
   const isUser = message.role === 'user'
+  const markdownSource = isUser ? '' : stripPageCitations(message.text)
+  const [revealedText, isDone] = useTypewriter(markdownSource, onReveal)
   const bubbleClass = [
     'message-bubble',
     isUser ? 'message-bubble--user' : 'message-bubble--assistant',
@@ -68,14 +102,11 @@ function MessageBubble({ message }) {
         {isUser ? (
           <p className="message-text">{message.text}</p>
         ) : (
-          <div className="message-text message-text--markdown">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{stripPageCitations(message.text)}</ReactMarkdown>
+          <div className={`message-text message-text--markdown ${isDone ? '' : 'message-text--typing'}`}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{revealedText}</ReactMarkdown>
           </div>
         )}
-        {!isUser && message.retrievedHotels?.length > 0 && (
-          <p className="message-hotels">Strutture citate: {message.retrievedHotels.join(', ')}</p>
-        )}
-        {!isUser && <PageBadges pages={message.sourcePages} />}
+        {!isUser && !message.isFallback && isDone && <PageBadges pages={message.sourcePages} />}
       </div>
     </div>
   )
@@ -98,10 +129,18 @@ function TypingIndicator() {
 
 export default function ChatArea({ messages, isLoading, onSuggestion }) {
   const bottomRef = useRef(null)
+  const scrollRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
+
+  const handleReveal = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    if (isNearBottom) el.scrollTop = el.scrollHeight
+  }
 
   if (messages.length === 0 && !isLoading) {
     return <HeroView onSuggestion={onSuggestion} />
@@ -109,9 +148,9 @@ export default function ChatArea({ messages, isLoading, onSuggestion }) {
 
   return (
     <div className="chat-area">
-      <div className="chat-scroll">
+      <div className="chat-scroll" ref={scrollRef}>
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble key={message.id} message={message} onReveal={handleReveal} />
         ))}
         {isLoading && <TypingIndicator />}
         <div ref={bottomRef} />

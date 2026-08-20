@@ -1,11 +1,12 @@
 from __future__ import annotations
 import argparse
 from pathlib import Path
-from fde_hotel_rag.config import settings
-from ingestion.pdf_parser import load_hotel_blocks
+from hotelai.config import settings
+from hotelai.logging_setup import configure_logging
 from ingestion.structured_extractor import extract_catalogue
-from search.vector_store import GeminiEmbedder, build_index
+from search.vector_store import GeminiEmbedder, build_index_from_csv
 
+configure_logging()
 parser = argparse.ArgumentParser(description="Estrae il catalogo hotel e costruisce l'indice.")
 parser.add_argument("pdf", type=Path)
 parser.add_argument("--offline", action="store_true")
@@ -16,5 +17,5 @@ print(f"Estrazione completata: {len(records)} hotel")
 if args.offline:
     print("Modalità offline: indice Chroma non costruito.")
 else:
-    count = build_index(records, load_hotel_blocks(args.pdf), embedder=GeminiEmbedder())
-    print(f"Indice Chroma pronto: {count} record")
+    count = build_index_from_csv(output, embedder=GeminiEmbedder())
+    print(f"Indice Chroma pronto: {count} record (importati da {output.name})")
