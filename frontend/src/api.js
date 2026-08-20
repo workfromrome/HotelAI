@@ -1,4 +1,7 @@
-const BASE_URL = '/api'
+// In dev, '/api' hits the Vite proxy (vite.config.js) which forwards to localhost:8000.
+// In production (Netlify), that proxy doesn't exist, so VITE_API_BASE_URL must point
+// directly at the deployed backend, e.g. https://your-backend.onrender.com/api.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 async function request(path, options) {
   const response = await fetch(`${BASE_URL}${path}`, options)

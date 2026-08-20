@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: hotelai-backend
+    runtime: python
+    plan: starter # required for the persistent disk below; the free plan has ephemeral storage only
+    buildCommand: pip install -r requirements.txt
+    startCommand: PYTHONPATH=src uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    disk:
+      name: hotelai-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: LLM_PROVIDER
+        value: google
+      - key: EMBEDDING_PROVIDER
+        value: google
+      - key: GOOGLE_MODEL
+        value: gemini-flash-latest
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

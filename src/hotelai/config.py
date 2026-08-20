@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     llm_fallback_confidence_threshold: float = 0.7  # below this, structured_extractor sends the record to Groq/Gemini review
     vector_weight: float = 0.7  # HotelRetriever._score blends vector similarity and metadata overlap using these two
     metadata_weight: float = 0.3
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"  # comma-separated; add the deployed frontend origin (e.g. Netlify URL) here
     llm_cache_path: Path = Path("tests/fixtures/llm_cached_responses.json")  # orphaned: no current code reads this
     @property
     def raw_text_path(self) -> Path: return self.data_dir / "raw" / "file_hotels.txt"  # unused: nothing writes this file today
@@ -40,4 +41,6 @@ class Settings(BaseSettings):
     def state_path(self) -> Path: return self.data_dir / "processed" / "extraction_state.json"  # unused: no resume logic exists today
     @property
     def log_path(self) -> Path: return self.log_dir / "app.log"
+    @property
+    def cors_origins_list(self) -> list[str]: return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 settings = Settings()
