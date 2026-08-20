@@ -5,11 +5,12 @@ __pycache__/
 .idea/
 logs/
 data/raw/
-data/processed/*.jsonl
 data/processed/*.md
 data/processed/extraction_state.json
 data/processed/*.csv
-data/processed/chromadb/
+# hotels_data.jsonl and chromadb/ are committed on purpose: the Render free plan has no
+# persistent disk, so the backend seeds its catalogue from these files on every deploy
+# instead of relying on runtime storage (see render.yaml).
 work_done.md
 presentation-notes/
 .claude/

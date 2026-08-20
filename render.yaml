@@ -2,17 +2,14 @@ services:
   - type: web
     name: hotelai-backend
     runtime: python
-    plan: starter # required for the persistent disk below; the free plan has ephemeral storage only
+    plan: free # no persistent disk — the catalogue is seeded from files committed to
+    # the repo (data/processed/chromadb/ + hotels_data.jsonl), rebuilt fresh on every
+    # deploy/clone. PDFs uploaded through the running app only last until the next
+    # redeploy or free-tier sleep/wake cycle (see README note in the deploy wizard).
     buildCommand: pip install -r requirements.txt
     startCommand: PYTHONPATH=src uvicorn api.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
-    disk:
-      name: hotelai-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
-      - key: DATA_DIR
-        value: /var/data
       - key: LLM_PROVIDER
         value: google
       - key: EMBEDDING_PROVIDER
