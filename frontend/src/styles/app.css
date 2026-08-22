@@ -273,15 +273,20 @@
     box-shadow 0.15s ease;
 }
 
-.quick-query-btn:hover {
+.quick-query-btn:hover:not(:disabled) {
   background: var(--bg-elevated);
   border-color: var(--accent-soft-strong);
   transform: translateY(-1px);
   box-shadow: var(--shadow-soft);
 }
 
-.quick-query-btn:active {
+.quick-query-btn:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.quick-query-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .quick-query-btn--test {

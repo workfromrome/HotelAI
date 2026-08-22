@@ -103,7 +103,7 @@ export default function App() {
         onQuickQuery={handleSend}
         onUploadPdf={handleUploadPdf}
         onNewChat={handleNewChat}
-        newChatDisabled={isLoading}
+        disabled={isLoading}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

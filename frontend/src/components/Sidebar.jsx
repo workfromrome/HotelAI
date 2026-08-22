@@ -131,7 +131,7 @@ function PdfUploader({ onUploadPdf }) {
   )
 }
 
-export default function Sidebar({ status, hotels, onQuickQuery, onUploadPdf, onNewChat, newChatDisabled, isOpen, onClose }) {
+export default function Sidebar({ status, hotels, onQuickQuery, onUploadPdf, onNewChat, disabled, isOpen, onClose }) {
   return (
     <>
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
@@ -149,7 +149,7 @@ export default function Sidebar({ status, hotels, onQuickQuery, onUploadPdf, onN
           <StatusDot status={status} />
         </div>
 
-        <button type="button" className="new-chat-btn" onClick={onNewChat} disabled={newChatDisabled}>
+        <button type="button" className="new-chat-btn" onClick={onNewChat} disabled={disabled}>
           <span className="new-chat-btn__icon" aria-hidden="true">
             +
           </span>
@@ -159,7 +159,13 @@ export default function Sidebar({ status, hotels, onQuickQuery, onUploadPdf, onN
         <CollapsibleSection title="Idee per iniziare">
           <div className="quick-queries">
             {QUICK_QUERIES.map((query) => (
-              <button key={query} type="button" className="quick-query-btn" onClick={() => onQuickQuery(query)}>
+              <button
+                key={query}
+                type="button"
+                className="quick-query-btn"
+                onClick={() => onQuickQuery(query)}
+                disabled={disabled}
+              >
                 {query}
               </button>
             ))}
@@ -167,6 +173,7 @@ export default function Sidebar({ status, hotels, onQuickQuery, onUploadPdf, onN
               type="button"
               className="quick-query-btn quick-query-btn--test"
               onClick={() => onQuickQuery(TEST_QUERY_TEXT)}
+              disabled={disabled}
             >
               🧪 {TEST_QUERY_TEXT}
             </button>
