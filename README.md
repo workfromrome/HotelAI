@@ -14,7 +14,7 @@ Exposed both as a web chat (FastAPI + React) and as an MCP tool for compatible c
 ## Live demo
 
 - **Backend API**: https://hotelai-backend-qjwr.onrender.com — try [`/api/health`](https://hotelai-backend-qjwr.onrender.com/api/health)
-- **Frontend**: _(pending — Netlify URL to add)_
+- **Frontend**: https://heartfelt-macaron-723b76.netlify.app/
 
 Runs on Render's and Netlify's free tiers: the backend spins down after inactivity, so the first request after a while can take up to ~50s to respond.
 
