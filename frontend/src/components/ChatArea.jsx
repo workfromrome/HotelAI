@@ -6,13 +6,14 @@ import { formatPageRanges, stripPageCitations } from '../utils'
 const TYPEWRITER_CHARS_PER_TICK = 3
 const TYPEWRITER_INTERVAL_MS = 10
 
-/** Reveals `text` a few characters at a time, chatgpt-style, instead of all at once. */
-function useTypewriter(text, onTick) {
+/** Reveals `text` a few characters at a time, chatgpt-style, instead of all at once.
+ * Pass `instant: true` (e.g. for debug output) to skip the animation entirely. */
+function useTypewriter(text, onTick, instant = false) {
   const [count, setCount] = useState(0)
 
   useEffect(() => {
-    if (!text) {
-      setCount(0)
+    if (!text || instant) {
+      setCount(text.length)
       return undefined
     }
     let current = 0
@@ -23,7 +24,7 @@ function useTypewriter(text, onTick) {
       if (current >= text.length) clearInterval(id)
     }, TYPEWRITER_INTERVAL_MS)
     return () => clearInterval(id)
-  }, [text])
+  }, [text, instant])
 
   useEffect(() => {
     onTick?.()
@@ -82,11 +83,12 @@ function PageBadges({ pages }) {
 function MessageBubble({ message, onReveal }) {
   const isUser = message.role === 'user'
   const markdownSource = isUser ? '' : stripPageCitations(message.text)
-  const [revealedText, isDone] = useTypewriter(markdownSource, onReveal)
+  const [revealedText, isDone] = useTypewriter(markdownSource, onReveal, message.isDebug)
   const bubbleClass = [
     'message-bubble',
     isUser ? 'message-bubble--user' : 'message-bubble--assistant',
     !isUser && message.isFallback ? 'message-bubble--fallback' : '',
+    !isUser && message.isDebug ? 'message-bubble--debug' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -102,9 +104,12 @@ function MessageBubble({ message, onReveal }) {
         {isUser ? (
           <p className="message-text">{message.text}</p>
         ) : (
-          <div className={`message-text message-text--markdown ${isDone ? '' : 'message-text--typing'}`}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{revealedText}</ReactMarkdown>
-          </div>
+          <>
+            {message.isDebug && <p className="debug-label">🔍 Debug — solo retrieval, nessuna chiamata LLM</p>}
+            <div className={`message-text message-text--markdown ${isDone ? '' : 'message-text--typing'}`}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{revealedText}</ReactMarkdown>
+            </div>
+          </>
         )}
         {!isUser && !message.isFallback && isDone && <PageBadges pages={message.sourcePages} />}
       </div>

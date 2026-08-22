@@ -2,11 +2,12 @@ import { useState } from 'react'
 
 export default function InputBar({ onSend, disabled, onToggleSidebar }) {
   const [value, setValue] = useState('')
+  const [debugMode, setDebugMode] = useState(false)
 
   const handleSend = () => {
     const trimmed = value.trim()
     if (!trimmed || disabled) return
-    onSend(trimmed)
+    onSend(trimmed, debugMode)
     setValue('')
   }
 
@@ -22,10 +23,19 @@ export default function InputBar({ onSend, disabled, onToggleSidebar }) {
       <button type="button" className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Apri catalogo">
         ☰
       </button>
+      <button
+        type="button"
+        className={`debug-toggle ${debugMode ? 'debug-toggle--active' : ''}`}
+        onClick={() => setDebugMode((v) => !v)}
+        aria-pressed={debugMode}
+        title="Modalità debug: mostra solo i risultati di retrieval, senza chiamare l'LLM"
+      >
+        🔍
+      </button>
       <div className="input-bar">
         <textarea
           className="input-bar__field"
-          placeholder="Scrivi la tua richiesta..."
+          placeholder={debugMode ? 'Modalità debug: query di retrieval (nessuna chiamata LLM)...' : 'Scrivi la tua richiesta...'}
           value={value}
           rows={1}
           onChange={(event) => setValue(event.target.value)}

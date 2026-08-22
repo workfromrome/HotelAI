@@ -85,12 +85,15 @@ def get_rag_engine(retriever: HotelRetriever | None = Depends(get_retriever)) ->
 class ChatRequest(BaseModel):
     query: str
     top_k: int = Field(default=5, ge=1, le=5)
+    debug: bool = False  # skip the LLM call, return the raw retrieval context instead
 
 
 @app.post("/api/chat", response_model=RAGResponse)
 def chat(request: ChatRequest, engine: RAGEngine | None = Depends(get_rag_engine)) -> RAGResponse:
     if engine is None:
         return RAGResponse(answer=FALLBACK_MESSAGE, is_fallback=True)
+    if request.debug:
+        return engine.debug_retrieve(request.query, top_k=request.top_k)
     return engine.answer_query(request.query, top_k=request.top_k)
 
 

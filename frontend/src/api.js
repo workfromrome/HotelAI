@@ -11,11 +11,11 @@ async function request(path, options) {
   return response.json()
 }
 
-export function sendChatMessage(query, topK = 5) {
+export function sendChatMessage(query, topK = 5, debug = false) {
   return request('/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, top_k: topK }),
+    body: JSON.stringify({ query, top_k: topK, debug }),
   })
 }
 

@@ -28,7 +28,7 @@ export default function App() {
       .catch(() => setHotels([]))
   }, [])
 
-  const handleSend = async (query) => {
+  const handleSend = async (query, debug = false) => {
     setMessages((prev) => [...prev, { id: makeId(), role: 'user', text: query }])
     setIsLoading(true)
     setSidebarOpen(false)
@@ -52,16 +52,18 @@ export default function App() {
     }
 
     try {
-      const response = await sendChatMessage(query)
+      const response = await sendChatMessage(query, 5, debug)
+      const isDebugContext = debug && !response.is_fallback
       setMessages((prev) => [
         ...prev,
         {
           id: makeId(),
           role: 'assistant',
-          text: response.answer,
+          text: isDebugContext ? `\`\`\`\n${response.answer}\n\`\`\`` : response.answer,
           sourcePages: response.source_pages,
           retrievedHotels: response.retrieved_hotels,
           isFallback: response.is_fallback,
+          isDebug: debug,
         },
       ])
     } catch (error) {
