@@ -1,0 +1,5 @@
+# Parole-badge verticali (una lettera per span nel PDF, es. "N O V I T A") da
+# scartare quando vengono ricomposte durante la lettura dell'header.
+# Una per riga, maiuscole; le righe vuote e quelle che iniziano con # sono ignorate.
+NOVITA
+NOVITÀ

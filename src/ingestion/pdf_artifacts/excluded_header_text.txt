@@ -1,0 +1,6 @@
+# Parole da ignorare quando si ricostruisce l'header (nome/localita) dal PDF.
+# Una per riga, maiuscole; le righe vuote e quelle che iniziano con # sono ignorate.
+# AILGUP e' "PUGLIA" letta al contrario: artefatto osservato su un elemento
+# verticale del layout della scheda.
+PUGLIA
+AILGUP
