@@ -3,7 +3,7 @@
 Not the documented way to start the server anymore (README/AGENTS.md both point to
 `python -m mcp_server.server`) — kept only in case something still imports this path.
 """
-from mcp_server.server import mcp, search_hotels
+from mcp_server.server import mcp
 
 if __name__ == "__main__":
     mcp.run()

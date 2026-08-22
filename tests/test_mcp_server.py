@@ -1,9 +1,12 @@
 from pathlib import Path
+
 from conftest import require_sample_pdf
+
 from ingestion.structured_extractor import extract_catalogue
 from mcp_server.server import configure_retriever, search_hotels
 from search.retriever import HotelRetriever
 from search.vector_store import OfflineEmbedder, build_index_from_csv
+
 
 def test_mcp_tool_returns_markdown(tmp_path: Path) -> None:
     pdf = require_sample_pdf()

@@ -2,11 +2,16 @@
 capped at settings.retrieval_limit (5) results regardless of what the caller asks for.
 Used directly by mcp_server.server and indirectly by RAGEngine (search/../rag/rag_engine.py)."""
 from __future__ import annotations
+
 import re
 from pathlib import Path
+
 import chromadb
+
 from hotelai.config import settings
+
 from .vector_store import Embedder, OfflineEmbedder
+
 
 def _metadata_score(query: str, metadata: dict[str, str]) -> float:
     """Fraction of the query's words that also appear somewhere in the record's metadata

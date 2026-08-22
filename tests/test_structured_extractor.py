@@ -1,13 +1,15 @@
 import json
 from pathlib import Path
-from unittest.mock import Mock
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from conftest import require_sample_pdf
+
+from hotelai.schemas import ExtractionQuality, HotelRating, HotelRecord, HotelSource
 from ingestion.pdf_parser import HotelBlock
 from ingestion.structured_extractor import _needs_llm_fallback, _offline, extract_block, extract_catalogue, read_csv
-from hotelai.schemas import ExtractionQuality, HotelRating, HotelRecord, HotelSource
+
 
 def test_offline_structured_csv(tmp_path: Path) -> None:
     pdf = require_sample_pdf()

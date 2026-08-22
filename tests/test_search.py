@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from conftest import require_sample_pdf
+
 from ingestion.structured_extractor import extract_catalogue
 from search.retriever import HotelRetriever
 from search.vector_store import OfflineEmbedder, build_index_from_csv

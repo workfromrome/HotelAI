@@ -9,3 +9,14 @@ requires-python = ">=3.11"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# BLE001 (blind except) and B008 (Depends()/File() as call defaults) are both
+# deliberate here: broad except-and-degrade is this codebase's documented failure
+# policy (see AGENTS.md), and Depends()/File() in argument defaults is required
+# FastAPI usage, not a mutable-default bug.
+ignore = ["BLE001", "B008"]

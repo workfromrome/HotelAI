@@ -7,7 +7,9 @@ with `python -m mcp_server.server`; `configure_retriever` exists so tests can in
 retriever built against a temp Chroma path instead of the real one (see tests/test_mcp_server.py).
 """
 from __future__ import annotations
+
 from fastmcp import FastMCP
+
 from hotelai.config import settings
 from hotelai.logging_setup import configure_logging
 from search.retriever import HotelRetriever, format_results

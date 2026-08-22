@@ -126,6 +126,7 @@ def print_report(pdf_path: Path) -> list[HotelBlock]:
 
 if __name__ == "__main__":
     import argparse
+
     from hotelai.logging_setup import configure_logging
     configure_logging()
     parser = argparse.ArgumentParser()

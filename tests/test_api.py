@@ -7,9 +7,9 @@ from conftest import require_sample_pdf
 from fastapi.testclient import TestClient
 
 import api.main as api_main
-import ingestion.structured_extractor as structured_extractor
 from api.main import app, get_rag_engine, get_retriever
 from hotelai.config import settings
+from ingestion import structured_extractor
 from rag.rag_engine import FALLBACK_MESSAGE, RAGResponse
 
 client = TestClient(app)

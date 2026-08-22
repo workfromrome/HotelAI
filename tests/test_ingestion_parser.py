@@ -1,6 +1,8 @@
 from conftest import require_sample_pdf
+
 from ingestion.pdf_parser import clean_ocr, load_hotel_blocks, repair_split_words
 from ingestion.pymupdf_parser import load_pymupdf_hotel_blocks
+
 
 def test_ocr_cleanup_normalizes_unicode_and_layout_whitespace() -> None:
     assert clean_ocr("Hotel\u00a0\u201cAlba\u201d  sul\n mare ;") == 'Hotel "Alba" sul mare;'

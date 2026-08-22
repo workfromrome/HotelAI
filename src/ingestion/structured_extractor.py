@@ -15,21 +15,21 @@ Pipeline per hotel block, driven by `extract_block`:
 """
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import re
-import csv
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .pdf_parser import HotelBlock
-from .pymupdf_parser import load_pymupdf_hotel_blocks
-from hotelai.schemas import HotelRecord
-from hotelai.schemas import ExtractionQuality, HotelRating, HotelSource, VisualRatings
 from hotelai.config import settings
 from hotelai.prompts import load_prompt
+from hotelai.schemas import ExtractionQuality, HotelRating, HotelRecord, HotelSource, VisualRatings
+
+from .pdf_parser import HotelBlock
+from .pymupdf_parser import load_pymupdf_hotel_blocks
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,8 @@ def _visual_ratings(pdf_path: Path, block: HotelBlock) -> list[HotelRating]:
     """Legge solo il crop dell'intestazione; non invia la pagina intera a Gemini."""
     if not settings.google_api_key or not block.pages or not block.words:
         return []
-    from google import genai
     import pdfplumber
+    from google import genai
 
     first_page = block.pages[0]
     page_words = [word for word in block.words if word["page"] == first_page]
@@ -102,7 +102,7 @@ def _stelle_from_text(text: str) -> str | None:
     dopo la review LLM, perché il formato libero del testo (stelle a simboli) è quello
     che compare nel PDF, mentre l'LLM tende a restituire solo la cifra (es. '4') --
     incoerente con le altre righe del catalogo che non passano per revisione."""
-    match = re.search(r"CATEGORIA UFFICIALE\s+(.+?)\s+VALUTAZIONE", text, re.I)
+    match = re.search(r"CATEGORIA UFFICIALE\s+(.+?)\s+VALUTAZIONE", text, re.IGNORECASE)
     return re.sub(r"\s+", " ", match.group(1)).strip() if match else None
 
 
@@ -452,6 +452,7 @@ def read_csv(input_path: Path) -> list[HotelSchema]:
 if __name__ == "__main__":
     import argparse
     import sys
+
     from hotelai.logging_setup import configure_logging
     configure_logging()
     if hasattr(sys.stdout, "reconfigure"): sys.stdout.reconfigure(encoding="utf-8")

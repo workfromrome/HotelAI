@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import argparse
 from pathlib import Path
+
 from hotelai.config import settings
 from hotelai.logging_setup import configure_logging
 from ingestion.structured_extractor import extract_catalogue

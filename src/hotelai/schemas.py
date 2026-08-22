@@ -21,7 +21,7 @@ class HotelRating(BaseModel):
     testo_originale: str | None = None
 
     @model_validator(mode="after")
-    def validate_range(self) -> "HotelRating":
+    def validate_range(self) -> HotelRating:
         if self.punteggio is not None and self.massimo is not None and self.punteggio > self.massimo:
             raise ValueError("Il punteggio non può superare il valore massimo")
         return self
