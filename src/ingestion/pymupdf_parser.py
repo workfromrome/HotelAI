@@ -10,8 +10,20 @@ import pymupdf
 from .pdf_parser import HotelBlock
 
 
-_EXCLUDED_HEADER_TEXT = {"PUGLIA", "AILGUP"}
-_EXCLUDED_BADGE_WORDS = {"NOVITA", "NOVITÀ"}
+def _load_word_list(name: str) -> set[str]:
+    """Legge <name>.txt da pdf_artifacts/: una parola per riga, maiuscole; righe
+    vuote o che iniziano con # sono ignorate. Tenuto qui (non in un modulo
+    condiviso) perche' e' l'unico chiamante."""
+    path = Path(__file__).parent / "pdf_artifacts" / f"{name}.txt"
+    return {
+        line.strip().upper()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    }
+
+
+_EXCLUDED_HEADER_TEXT = _load_word_list("excluded_header_text")
+_EXCLUDED_BADGE_WORDS = _load_word_list("excluded_badge_words")
 _STOP_MARKERS = re.compile(r"CATEGORIA\s+UFFICIALE|VALUTAZIONE|INQUADRA\s+IL\s+QR", re.IGNORECASE)
 
 # Il font decorativo dei titoli rende la coppia di lettere "LA" come un unico glifo,

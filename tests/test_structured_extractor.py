@@ -1,8 +1,12 @@
+import json
 from pathlib import Path
+from unittest.mock import Mock
+from types import SimpleNamespace
+
 import pytest
 from conftest import require_sample_pdf
 from ingestion.pdf_parser import HotelBlock
-from ingestion.structured_extractor import _needs_llm_fallback, _offline, extract_catalogue, read_csv
+from ingestion.structured_extractor import _needs_llm_fallback, _offline, extract_block, extract_catalogue, read_csv
 from hotelai.schemas import ExtractionQuality, HotelRating, HotelRecord, HotelSource
 
 def test_offline_structured_csv(tmp_path: Path) -> None:
@@ -46,6 +50,61 @@ def test_offline_flags_missing_locality() -> None:
     record = _offline(block, 1)
     assert record.localita == "Non specificata"
     assert "localita_non_separata" in record.quality.issues
+
+
+def test_offline_does_not_treat_qr_badge_as_second_rating() -> None:
+    """Il badge decorativo tra l'ente e 'e scopri' (es. 'ANIMAZIONE Inquadra il QR') non è
+    una seconda valutazione: prima veniva catturato come tale, sporcando il CSV con voci
+    tipo 'animazione  inquadra il qr'."""
+    text = (
+        "CATEGORIA UFFICIALE  ★★★★  VALUTAZIONE BRAVO  ANIMAZIONE  Inquadra il QR  "
+        "e scopri l'hotel"
+    )
+    block = HotelBlock(title="HOTEL TEST", pages=(1,), text=text, locality="Test")
+    record = _offline(block, 1)
+    assert len(record.valutazioni) == 1
+    assert record.valutazioni[0].ente == "BRAVO"
+    assert record.valutazioni[0].tipo == "generale"
+
+
+def test_offline_stelle_collapses_extra_whitespace() -> None:
+    text = "CATEGORIA UFFICIALE DÉPENDANCE  ★★★★  / PALACE  ★★★★★ VALUTAZIONE FRANCOROSSO e scopri"
+    block = HotelBlock(title="HOTEL TEST", pages=(1,), text=text, locality="Test")
+    record = _offline(block, 1)
+    assert record.stelle == "DÉPENDANCE ★★★★ / PALACE ★★★★★"
+
+
+def test_extract_block_falls_back_to_deterministic_valutazioni_when_review_finds_none() -> None:
+    """La review LLM viene interpellata (categoria assente qui) e a volte non ritrova
+    l'ente nell'header, pur essendo lì (vedi hotel-017 nel catalogo reale, header a
+    doppia struttura Dépendance/Palace): non deve azzerare un segnale deterministico
+    già trovato da _header_fields."""
+    text = "CATEGORIA UFFICIALE testo illeggibile VALUTAZIONE FRANCOROSSO e scopri l'hotel"
+    block = HotelBlock(title="HOTEL TEST PALACE", pages=(1,), text=text, locality="Test")
+    groq_client = Mock()
+    groq_client.chat.completions.create.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps({"nome": "HOTEL TEST PALACE"})))]
+    )
+    record = extract_block(block, 1, use_gemini=True, groq_client=groq_client, gemini_client=None)
+    assert len(record.valutazioni) == 1
+    assert record.valutazioni[0].ente == "FRANCOROSSO"
+
+
+def test_extract_block_strips_valutazione_label_copied_into_ente() -> None:
+    """La review LLM a volte copia anche l'etichetta 'VALUTAZIONE' che precede l'ente nel
+    testo grezzo (osservato con Groq su hotel-009: ente 'VALUTAZIONE ALPITOUR' invece di
+    'ALPITOUR')."""
+    text = "CATEGORIA UFFICIALE testo illeggibile VALUTAZIONE ALPITOUR e scopri l'hotel"
+    block = HotelBlock(title="HOTEL TEST", pages=(1,), text=text, locality="Test")
+    groq_client = Mock()
+    groq_client.chat.completions.create.return_value = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps({
+            "nome": "HOTEL TEST",
+            "valutazioni": [{"ente": "VALUTAZIONE ALPITOUR", "tipo": "generale"}],
+        })))]
+    )
+    record = extract_block(block, 1, use_gemini=True, groq_client=groq_client, gemini_client=None)
+    assert record.valutazioni[0].ente == "ALPITOUR"
 
 
 def test_structured_ratings_and_quality_are_validated() -> None:

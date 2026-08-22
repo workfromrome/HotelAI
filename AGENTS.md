@@ -4,7 +4,7 @@
 
 - `src/ingestion/`: PDF loading/segmentation and structured Groq/Gemini-reviewed extraction.
   - `pdf_parser.py`: pdfplumber-based hotel-block segmentation, OCR cleanup, and word bounding boxes (used as the reference `.words` source for the visual-ratings fallback).
-  - `pymupdf_parser.py`: font-size-aware header extractor; canonical `nome`/`localita` source for `structured_extractor`.
+  - `pymupdf_parser.py`: font-size-aware header extractor; canonical `nome`/`localita` source for `structured_extractor`. The two flat exclusion word-lists (`_EXCLUDED_HEADER_TEXT`, `_EXCLUDED_BADGE_WORDS`) live as one-word-per-line `.txt` files in `pdf_artifacts/`, not as Python constants — edit those files to add/remove excluded words, no code change needed. `_STOP_MARKERS` (regex) and `_LIGATURE_GLYPHS` (character-substitution rule) stayed in code: they're parsing logic, not data.
   - `structured_extractor.py`: canonical `HotelRecord` extraction and CSV/JSONL export.
 - `src/search/`: embeddings, ChromaDB indexing, hybrid retrieval and Markdown formatting.
   - `vector_store.py`: `GeminiEmbedder`, offline embedder and persistent Chroma index. `build_index_from_csv` reads `hotels_data.csv` back via `structured_extractor.read_csv` and is the real Part-1-to-Part-2 bridge — `build_index` itself takes only records, no PDF blocks, since the document text embedded per hotel is `record.source.raw_text`, already present in the CSV's `source` column.
@@ -25,7 +25,7 @@ Canonical flow:
 PDF -> ingestion -> HotelRecord -> CSV/JSONL -> [CSV re-read] -> Gemini embeddings -> ChromaDB -> retriever -> FastMCP
 ```
 
-`run_pipeline.py` writes the CSV, then re-reads it with `read_csv` before calling `build_index_from_csv` — indexing never touches the in-memory `records` from extraction directly. See [`user-doc/csv-driven-indexing.md`](user-doc/csv-driven-indexing.md) for why this round trip exists instead of indexing straight from memory.
+`run_pipeline.py` writes the CSV, then re-reads it with `read_csv` before calling `build_index_from_csv` — indexing never touches the in-memory `records` from extraction directly. See `presentation-notes/csv-driven-indexing.md` (local-only, gitignored) for why this round trip exists instead of indexing straight from memory.
 
 ## Code standards
 
