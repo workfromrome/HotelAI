@@ -1,7 +1,7 @@
 [project]
 name = "hotelai"
 version = "0.1.0"
-description = "PDF-to-MCP hotel search assignment"
+description = "HotelAI: PDF ingestion, hybrid RAG search and an MCP server for hotel data"
 requires-python = ">=3.11"
 # Le dipendenze runtime/dev sono in requirements.txt (unica fonte di verità: `pip install -r requirements.txt`);
 # questo file non ne mantiene una copia per evitare che le due liste divergano.

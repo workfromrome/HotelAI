@@ -11,6 +11,9 @@ data/processed/*.csv
 # hotels_data.jsonl and chromadb/ are committed on purpose: the Render free plan has no
 # persistent disk, so the backend seeds its catalogue from these files on every deploy
 # instead of relying on runtime storage (see render.yaml).
+# Personal working/interview-prep notes (talking points, "what to say if asked X") never
+# belong in user-doc/ or elsewhere in tracked docs, even when the underlying technical
+# content is fine to keep public — put them here instead.
 work_done.md
 presentation-notes/
 .claude/

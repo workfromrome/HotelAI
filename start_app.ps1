@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 $venvPython = Join-Path $root ".venv\Scripts\python.exe"
 
-Write-Host "==> Avvio Keplero Hotel Chatbot" -ForegroundColor Cyan
+Write-Host "==> Avvio HotelAI" -ForegroundColor Cyan
 
 if (-not (Test-Path $venvPython)) {
     Write-Host "Ambiente virtuale non trovato in .venv. Eseguire prima il setup (vedi README.md)." -ForegroundColor Red
