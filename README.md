@@ -154,6 +154,17 @@ pytest -q
 
 The sample PDF produces 19 CSV rows; `source_pages` makes every field traceable back to its original pages. Known limits: PDF text extraction order and some OCR artifacts may need visual review; the deterministic fallback is conservative and doesn't replace the model's semantic validation.
 
+## RAG retrieval eval
+
+`pytest` covers plumbing and the deterministic criteria-reranking logic, but the offline embedder it uses for that is hash-based, not semantic — it can't tell you whether a natural-language query actually finds the right hotel. [`scripts/eval_rag.py`](scripts/eval_rag.py) does: it runs a small hand-verified set of queries ([`scripts/eval_queries.json`](scripts/eval_queries.json), 12 cases) against the real committed index with real Gemini embeddings, and reports Recall@5.
+
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/eval_rag.py
+```
+
+Needs `GOOGLE_API_KEY` and spends real embedding quota, so it's not part of the automated test suite — run it manually when retrieval logic changes. Currently 12/12.
+
 ## License
 
 [MIT](LICENSE)

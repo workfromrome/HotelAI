@@ -1,0 +1,50 @@
+[
+  {
+    "query": "Cerco un hotel con servizio biberoneria per neonati.",
+    "expected_hotel_ids": ["hotel-001", "hotel-004", "hotel-013", "hotel-017"]
+  },
+  {
+    "query": "Hotel a Vieste.",
+    "expected_hotel_ids": ["hotel-006", "hotel-017"]
+  },
+  {
+    "query": "Struttura vicino a una riserva naturale.",
+    "expected_hotel_ids": ["hotel-007"]
+  },
+  {
+    "query": "Hotel all inclusive puro, non soft.",
+    "expected_hotel_ids": ["hotel-001", "hotel-010"]
+  },
+  {
+    "query": "Hotel in mezza pensione.",
+    "expected_hotel_ids": ["hotel-006", "hotel-008"]
+  },
+  {
+    "query": "Struttura con campo da golf.",
+    "expected_hotel_ids": ["hotel-008"]
+  },
+  {
+    "query": "Hotel ricavato da un'antica masseria.",
+    "expected_hotel_ids": ["hotel-005", "hotel-012"]
+  },
+  {
+    "query": "Cerco una struttura pet-friendly vicino al mare.",
+    "expected_hotel_ids": ["hotel-005", "hotel-006", "hotel-008", "hotel-012", "hotel-015", "hotel-019"]
+  },
+  {
+    "query": "Trova strutture con camere family e parcheggio.",
+    "expected_hotel_ids": ["hotel-001", "hotel-002", "hotel-003", "hotel-008", "hotel-010", "hotel-013"]
+  },
+  {
+    "query": "Villaggio con nursery per neonati e attività Montessoriane.",
+    "expected_hotel_ids": ["hotel-006"]
+  },
+  {
+    "query": "Hotel con vasca idromassaggio su terrazza panoramica.",
+    "expected_hotel_ids": ["hotel-005"]
+  },
+  {
+    "query": "Resort con centro congressi per eventi aziendali.",
+    "expected_hotel_ids": ["hotel-002", "hotel-008"]
+  }
+]
