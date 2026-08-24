@@ -12,6 +12,8 @@ PDF -> structured extraction -> CSV/JSONL -> embeddings + ChromaDB -> hybrid sea
 
 Exposed both as a web chat (FastAPI + React) and as an MCP tool for compatible clients (e.g. Claude Desktop).
 
+![HotelAI chat demo: asking for a pet-friendly hotel near the sea and getting a cited answer](assets/demo.gif)
+
 ## Live demo
 
 - **Backend API**: https://hotelai-backend-qjwr.onrender.com — try [`/api/health`](https://hotelai-backend-qjwr.onrender.com/api/health)
