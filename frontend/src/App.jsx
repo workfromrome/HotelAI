@@ -41,7 +41,7 @@ export default function App() {
             id: makeId(),
             role: 'assistant',
             text: TEST_RESPONSE_TEXT,
-            sourcePages: [4, 5],
+            sourcePages: [],
             retrievedHotels: ['Hotel Esempio'],
             isFallback: false,
           },
