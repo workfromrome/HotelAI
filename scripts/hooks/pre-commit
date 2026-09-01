@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Local safety net for AGENTS.md's "keys live in .env, never in code": blocks a commit that
+# stages a real .env file, or that pastes a real-looking API key literal into any file.
+# CI runs a second, repo-wide check (gitleaks, see .github/workflows/ci.yml) as a backstop
+# for anyone who hasn't enabled this hook — see README "Enable the pre-commit hook".
+set -euo pipefail
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+
+blocked_files=$(echo "$staged_files" | grep -E '(^|/)\.env(\..+)?$' | grep -v '\.env\.example$' || true)
+if [ -n "$blocked_files" ]; then
+  echo "pre-commit: refusing to commit .env file(s) — these hold real API keys:" >&2
+  echo "$blocked_files" >&2
+  echo "Unstage with: git restore --staged <file>" >&2
+  exit 1
+fi
+
+key_pattern='AIza[0-9A-Za-z_-]{20,}|AQ\.Ab[0-9A-Za-z_-]{20,}|gsk_[0-9A-Za-z]{20,}|sk-[0-9A-Za-z]{20,}|ya29\.[0-9A-Za-z_-]{20,}'
+hits=$(git diff --cached -U0 -- . ':(exclude).env.example' | grep -E '^\+' | grep -Ev '^\+\+\+' | grep -E "$key_pattern" || true)
+if [ -n "$hits" ]; then
+  echo "pre-commit: a staged change looks like it contains a real API key:" >&2
+  echo "$hits" >&2
+  echo "If this is a false positive, review with 'git diff --cached' and commit again." >&2
+  exit 1
+fi
+
+exit 0

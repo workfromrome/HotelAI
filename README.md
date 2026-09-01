@@ -17,7 +17,7 @@ Exposed both as a web chat (FastAPI + React) and as an MCP tool for compatible c
 ## Live demo
 
 - **Backend API**: https://hotelai-backend-qjwr.onrender.com — try [`/api/health`](https://hotelai-backend-qjwr.onrender.com/api/health)
-- **Frontend**: https://heartfelt-macaron-723b76.netlify.app/
+- **Frontend**: https://hotelaibywfr.netlify.app/
 
 Runs on Render's and Netlify's free tiers: the backend spins down after inactivity, so the first request after a while can take up to ~50s to respond.
 
@@ -65,7 +65,10 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
+git config core.hooksPath scripts/hooks
 ```
+
+`.env` holds real API keys and is gitignored; it must never be committed. `core.hooksPath` enables [`scripts/hooks/pre-commit`](scripts/hooks/pre-commit), which refuses a commit that stages `.env` or that pastes a key-shaped literal into any other file — it's a local git config, so run that line again after any fresh clone. CI runs a second, repo-wide check ([gitleaks](https://github.com/gitleaks/gitleaks)) as a backstop.
 
 ### 2. Offline verification (no API key, no external calls)
 
