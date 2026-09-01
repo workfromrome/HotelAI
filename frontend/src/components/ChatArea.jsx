@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { formatPageRanges, stripPageCitations } from '../utils'
+import { formatPageRanges, stripPageCitations, tightenLooseListItems } from '../utils'
 
 const TYPEWRITER_CHARS_PER_TICK = 3
 const TYPEWRITER_INTERVAL_MS = 10
@@ -82,7 +82,7 @@ function PageBadges({ pages }) {
 
 function MessageBubble({ message, onReveal }) {
   const isUser = message.role === 'user'
-  const markdownSource = isUser ? '' : stripPageCitations(message.text)
+  const markdownSource = isUser ? '' : stripPageCitations(tightenLooseListItems(message.text))
   const [revealedText, isDone] = useTypewriter(markdownSource, onReveal, message.isDebug)
   const bubbleClass = [
     'message-bubble',

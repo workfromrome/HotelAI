@@ -10,6 +10,44 @@ export function stripPageCitations(text) {
   return text.replace(PAGE_CITATION_PATTERN, '').replace(/[ \t]+([.,;:!?])/g, '$1')
 }
 
+const LIST_MARKER_PATTERN = /^(\s*)([-*+]|\d+\.)\s+/
+
+/**
+ * Some LLM answers put a blank line between a bullet's bold title and its description
+ * (e.g. "- **Hotel X**\n\nDescrizione..."). CommonMark then treats the unindented
+ * description as a new top-level paragraph *outside* the list instead of nesting it
+ * inside the `<li>`, which breaks the tight-list CSS (`li > p { margin: 0 }` never
+ * applies) and shows up as an oversized gap under each bullet. This re-indents that
+ * first orphaned paragraph so it nests back under the preceding list item, without
+ * touching already-tight lists or unrelated prose.
+ */
+export function tightenLooseListItems(text) {
+  if (!text) return text
+  const lines = text.split('\n')
+  let pendingIndent = null
+
+  return lines
+    .map((line, i) => {
+      const marker = line.match(LIST_MARKER_PATTERN)
+      if (marker) {
+        pendingIndent = ' '.repeat(marker[0].length)
+        return line
+      }
+      if (line.trim() === '') return line
+
+      const isRightAfterBlank = (lines[i - 1] ?? '').trim() === ''
+      const alreadyIndented = /^\s/.test(line)
+      if (pendingIndent && isRightAfterBlank && !alreadyIndented) {
+        const fixed = pendingIndent + line
+        pendingIndent = null
+        return fixed
+      }
+      pendingIndent = null
+      return line
+    })
+    .join('\n')
+}
+
 /** Query text that triggers the local canned response in App.jsx instead of calling the LLM. */
 export const TEST_QUERY_TEXT = 'Messaggio di prova (senza LLM)'
 

@@ -52,7 +52,10 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
+git config core.hooksPath scripts/hooks
 ```
+
+`.env` contiene le chiavi API reali ed è escluso da git; non va mai committato. `core.hooksPath` abilita [`scripts/hooks/pre-commit`](scripts/hooks/pre-commit), che rifiuta un commit se stage `.env` o se incolla per errore una chiave in un altro file — è un'impostazione git locale, quindi va rilanciata dopo ogni nuovo clone. In CI un secondo controllo, repo-wide ([gitleaks](https://github.com/gitleaks/gitleaks)), fa da rete di sicurezza.
 
 ### 2. Verifica offline (nessuna API key, nessuna chiamata esterna)
 
